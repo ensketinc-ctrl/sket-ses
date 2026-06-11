@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SKET マッチングツール 使い方マニュアル</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;color:#1A1D23;background:#fff;font-size:14px;line-height:1.7}
+.page{max-width:800px;margin:0 auto;padding:40px 32px}
+/* 表紙 */
+.cover{background:#1A1D23;color:#fff;border-radius:16px;padding:48px 40px;margin-bottom:40px;text-align:center}
+.cover-logo{font-size:13px;color:#9CA3AF;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+.cover-title{font-size:32px;font-weight:700;margin-bottom:8px;line-height:1.3}
+.cover-sub{font-size:15px;color:#9CA3AF;margin-bottom:32px}
+.cover-badges{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.cover-badge{background:rgba(255,255,255,.15);padding:6px 16px;border-radius:20px;font-size:12px}
+/* セクション */
+.section{margin-bottom:48px}
+.section-num{font-size:11px;font-weight:600;color:#0F9D6E;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.section-title{font-size:22px;font-weight:700;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #E4E6EA}
+/* ステップ */
+.steps{display:flex;flex-direction:column;gap:0}
+.step{display:flex;gap:20px;padding:20px 0;border-bottom:1px solid #F3F4F6}
+.step:last-child{border-bottom:none}
+.step-num{width:36px;height:36px;background:#1A1D23;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;margin-top:2px}
+.step-body{flex:1}
+.step-title{font-size:16px;font-weight:600;margin-bottom:6px}
+.step-desc{font-size:13px;color:#4B5563;line-height:1.7}
+/* スクリーン画像の代わりのモック */
+.screen-mock{background:#F7F8FA;border:1px solid #E4E6EA;border-radius:12px;padding:20px;margin-top:12px}
+.mock-tabs{display:flex;gap:2px;margin-bottom:12px;background:#E4E6EA;border-radius:8px;padding:3px}
+.mock-tab{padding:5px 12px;border-radius:6px;font-size:11px;color:#6B7280}
+.mock-tab.active{background:#fff;color:#1A1D23;font-weight:600}
+.mock-content{background:#fff;border-radius:8px;padding:12px;border:1px solid #E4E6EA}
+/* カラーボックス */
+.highlight{background:#E8F7F2;border-left:4px solid #0F9D6E;border-radius:0 8px 8px 0;padding:14px 18px;margin:12px 0;font-size:13px}
+.warning{background:#FFFBEB;border-left:4px solid #D97706;border-radius:0 8px 8px 0;padding:14px 18px;margin:12px 0;font-size:13px}
+.info{background:#EFF6FF;border-left:4px solid #2563EB;border-radius:0 8px 8px 0;padding:14px 18px;margin:12px 0;font-size:13px}
+/* タブ機能説明 */
+.tab-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
+.tab-card{background:#F7F8FA;border-radius:10px;padding:16px;border:1px solid #E4E6EA}
+.tab-card-icon{font-size:20px;margin-bottom:8px}
+.tab-card-name{font-size:13px;font-weight:600;margin-bottom:4px}
+.tab-card-desc{font-size:12px;color:#6B7280;line-height:1.6}
+/* スコア説明 */
+.score-explain{display:flex;gap:12px;margin-top:12px}
+.score-item{flex:1;background:#F7F8FA;border-radius:10px;padding:14px;border:1px solid #E4E6EA;text-align:center}
+.score-num{font-size:24px;font-weight:800;color:#1A1D23}
+.score-label{font-size:11px;color:#6B7280;margin:2px 0}
+.score-bar-demo{height:6px;border-radius:3px;margin-top:8px}
+/* FAQ */
+.faq{margin-top:12px}
+.faq-item{border:1px solid #E4E6EA;border-radius:10px;margin-bottom:8px;overflow:hidden}
+.faq-q{background:#F7F8FA;padding:12px 16px;font-size:13px;font-weight:600;color:#1A1D23}
+.faq-q::before{content:"Q. ";color:#0F9D6E}
+.faq-a{padding:12px 16px;font-size:13px;color:#4B5563;line-height:1.7}
+.faq-a::before{content:"A. ";font-weight:600;color:#1A1D23}
+/* 印刷 */
+@media print{
+  .page{padding:20px}
+  .cover{border-radius:8px;padding:32px}
+  .section{page-break-inside:avoid}
+  .step{page-break-inside:avoid}
+}
+@media(max-width:600px){
+  .page{padding:20px 16px}
+  .cover{padding:32px 20px}
+  .cover-title{font-size:24px}
+  .tab-grid{grid-template-columns:1fr}
+  .score-explain{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- 表紙 -->
+<div class="cover">
+  <div class="cover-logo">株式会社 SKET</div>
+  <div class="cover-title">SESマッチングツール<br>使い方マニュアル</div>
+  <div class="cover-sub">案件情報 × 要員情報 自動マッチング</div>
+  <div class="cover-badges">
+    <span class="cover-badge">📋 案件85件対応</span>
+    <span class="cover-badge">👤 要員27名対応</span>
+    <span class="cover-badge">🎯 スコア自動判定</span>
+    <span class="cover-badge">✉ 提案文コピー機能</span>
+  </div>
+</div>
+
+<!-- ツール概要 -->
+<div class="section">
+  <div class="section-num">Overview</div>
+  <div class="section-title">このツールでできること</div>
+  <div class="tab-grid">
+    <div class="tab-card">
+      <div class="tab-card-icon">🎯</div>
+      <div class="tab-card-name">マッチング</div>
+      <div class="tab-card-desc">要員を選ぶと、スキル・単価・働き方の3軸でスコアリングし、合う案件を上位8件表示</div>
+    </div>
+    <div class="tab-card">
+      <div class="tab-card-icon">🔍</div>
+      <div class="tab-card-name">逆引き検索</div>
+      <div class="tab-card-desc">案件を選ぶと、その案件に合う要員を上位8名表示。新案件が来たときに便利</div>
+    </div>
+    <div class="tab-card">
+      <div class="tab-card-icon">📥</div>
+      <div class="tab-card-name">情報追加</div>
+      <div class="tab-card-desc">LINEやメールのテキストをそのまま貼り付けるだけ。AIが自動解析してDBとスプシに追加</div>
+    </div>
+    <div class="tab-card">
+      <div class="tab-card-icon">✉</div>
+      <div class="tab-card-name">提案文作成</div>
+      <div class="tab-card-desc">マッチング結果の詳細画面からプロンプトをコピー。Claude.aiに貼るだけで提案メールが完成</div>
+    </div>
+  </div>
+</div>
+
+<!-- 基本的な使い方 -->
+<div class="section">
+  <div class="section-num">Step by Step</div>
+  <div class="section-title">基本的な使い方</div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">ツールを開く</div>
+        <div class="step-desc">
+          「SKET_マッチングツール_v3.html」をダブルクリックしてブラウザで開きます。<br>
+          自動でスプレッドシートの最新データを読み込みます。<br>
+          <span style="color:#0F9D6E;font-weight:500">右上に「案件●件 / 要員●名」と表示されれば正常に読み込めています。</span>
+        </div>
+        <div class="screen-mock">
+          <div style="background:#1A1D23;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:12px">
+            <span style="color:#fff;font-size:12px;font-weight:600">SKET マッチングツール</span>
+            <span style="margin-left:auto;color:#9CA3AF;font-size:11px">案件 85件　要員 27名　12:30更新</span>
+            <span style="background:rgba(255,255,255,.2);color:#fff;font-size:10px;padding:3px 8px;border-radius:4px">↻ 再読込</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">🎯 マッチングタブで要員を選ぶ</div>
+        <div class="step-desc">
+          左側の一覧から提案したい要員をクリックします。<br>
+          名前やスキル名で検索して絞り込めます。
+        </div>
+        <div class="screen-mock">
+          <div style="display:flex;gap:10px">
+            <div style="width:160px;border-right:1px solid #E4E6EA;padding-right:10px">
+              <div style="font-size:10px;color:#6B7280;margin-bottom:6px">要員を選択</div>
+              <div style="background:#EFF6FF;border-left:3px solid #2563EB;padding:6px 8px;border-radius:4px;margin-bottom:4px">
+                <div style="font-size:11px;font-weight:500">TH（38歳）</div>
+                <div style="font-size:10px;color:#6B7280">PowerPlatform · 生成AI</div>
+              </div>
+              <div style="padding:6px 8px;margin-bottom:4px">
+                <div style="font-size:11px;font-weight:500">KS（29歳）</div>
+                <div style="font-size:10px;color:#6B7280">PHP · Laravel · Python</div>
+              </div>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:10px;color:#6B7280;margin-bottom:6px">マッチング結果（上位8件）</div>
+              <div style="background:#F7F8FA;border-radius:6px;padding:8px;margin-bottom:6px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="background:#FFD700;width:18px;height:18px;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#7A5C00">1</span>
+                  <span style="font-size:11px;font-weight:500;flex:1">生成AIチャットボット開発</span>
+                  <span style="font-size:14px;font-weight:800;color:#0F9D6E">85点</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">スコアを確認して詳細を開く</div>
+        <div class="step-desc">
+          マッチング結果が点数順に表示されます。<br>
+          気になる案件をクリックすると詳細モーダルが開きます。
+        </div>
+        <div class="score-explain">
+          <div class="score-item">
+            <div class="score-num" style="color:#0F9D6E">60</div>
+            <div class="score-label">スキル適合</div>
+            <div style="font-size:10px;color:#6B7280">必須スキルの一致率</div>
+            <div class="score-bar-demo" style="background:#0F9D6E;width:100%"></div>
+          </div>
+          <div class="score-item">
+            <div class="score-num" style="color:#2563EB">25</div>
+            <div class="score-label">単価マッチ</div>
+            <div style="font-size:10px;color:#6B7280">案件単価≧希望単価で満点</div>
+            <div class="score-bar-demo" style="background:#2563EB;width:100%"></div>
+          </div>
+          <div class="score-item">
+            <div class="score-num" style="color:#7C3AED">15</div>
+            <div class="score-label">働き方</div>
+            <div style="font-size:10px;color:#6B7280">リモート希望と案件条件の一致</div>
+            <div class="score-bar-demo" style="background:#7C3AED;width:100%"></div>
+          </div>
+        </div>
+        <div class="highlight" style="margin-top:12px">
+          <strong>目安：</strong> 70点以上 → 強くおすすめ　45〜69点 → 要確認　44点以下 → スキル不足の可能性あり
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">提案文プロンプトをコピーする</div>
+        <div class="step-desc">
+          詳細モーダルの下部にある「📋 提案文プロンプトをコピー」ボタンを押します。<br>
+          その後、<strong>Claude.ai（このチャット画面）</strong>を開いてそのまま貼り付けるだけで提案メールが完成します。
+        </div>
+        <div class="info">
+          💡 APIキー不要・追加費用ゼロで使えます。普段使っているClaude.aiのサブスクリプションをそのまま活用できます。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 情報追加の使い方 -->
+<div class="section">
+  <div class="section-num">Important</div>
+  <div class="section-title">📥 新しい案件・要員情報を追加する方法</div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">「情報追加」タブを開く</div>
+        <div class="step-desc">上部のタブから「📥 情報追加」をクリックします。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">LINEやメールのテキストをそのまま貼り付ける</div>
+        <div class="step-desc">
+          案件情報なら左側、要員情報なら右側のテキストエリアに貼り付けます。<br>
+          コピペするだけでOK。文章の整形は不要です。
+        </div>
+        <div class="warning">
+          ⚠️ 個人名・メールアドレスなど個人情報は貼り付けないようにしてください。
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">「AIで解析してDBに追加」ボタンを押す</div>
+        <div class="step-desc">
+          AIが自動でスキル・単価・リモート可否などを抽出します。<br>
+          <span style="color:#0F9D6E;font-weight:500">ツールのDBとスプレッドシートの両方に同時保存されます。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- よくある質問 -->
+<div class="section">
+  <div class="section-num">FAQ</div>
+  <div class="section-title">よくある質問</div>
+  <div class="faq">
+    <div class="faq-item">
+      <div class="faq-q">データが表示されない・古いデータが表示される</div>
+      <div class="faq-a">右上の「↻ 再読込」ボタンを押してください。スプレッドシートの最新データを取得します。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">スプレッドシートに直接入力した場合はどうなる？</div>
+      <div class="faq-a">ツールの「再読込」ボタンを押すと反映されます。自動では更新されないので、使う前に押す習慣をつけてください。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">スコアが低い要員でも提案できる？</div>
+      <div class="faq-a">もちろんできます。スコアはあくまで参考値です。実際のスキルシートを確認した上で最終判断してください。スキルが✗になっている項目は事前に本人に確認することをおすすめします。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">提案文はどこで作れる？</div>
+      <div class="faq-a">詳細画面の「提案文プロンプトをコピー」ボタンを押して、Claude.ai（claude.ai）に貼り付けてください。追加費用なしで使えます。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">営業メンバーへの共有方法は？</div>
+      <div class="faq-a">HTMLファイルをそのままメールやSlackで送るだけです。受け取った側もダブルクリックで開けます。インストール不要です。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">スマートフォンでも使える？</div>
+      <div class="faq-a">使えます。ただしPCブラウザでの利用を推奨します。スマートフォンの場合はGoogleドライブにHTMLをアップロードして開いてください。</div>
+    </div>
+  </div>
+</div>
+
+<!-- フッター -->
+<div style="text-align:center;padding-top:32px;border-top:1px solid #E4E6EA;color:#9CA3AF;font-size:12px">
+  <div style="font-weight:600;color:#1A1D23;margin-bottom:4px">株式会社SKET</div>
+  <div>困ったときはClaude.ai（社内AI）に質問してください</div>
+</div>
+
+</div>
+</body>
+</html>
