@@ -3,34 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SKET マッチングツール v2</title>
+<title>SKET マッチングツール</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A1D23;font-size:13px}
 .hdr{background:#1A1D23;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
-.hdr-title{font-size:15px;font-weight:700}
-.hdr-sub{font-size:11px;color:#9CA3AF}
+.hdr-title{font-size:15px;font-weight:700}.hdr-sub{font-size:11px;color:#9CA3AF}
 .hdr-stats{margin-left:auto;display:flex;gap:16px}
-.stat-v{font-size:16px;font-weight:700;text-align:right}
-.stat-l{font-size:10px;color:#9CA3AF;text-align:right}
-.hdr-btn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer}
-.hdr-btn:hover{background:rgba(255,255,255,.25)}
+.sv{font-size:16px;font-weight:700;text-align:right}.sl{font-size:10px;color:#9CA3AF;text-align:right}
+.hbtn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer}
 .tabs{display:flex;background:#fff;border-bottom:1px solid #E4E6EA;padding:0 12px;overflow-x:auto;position:sticky;top:46px;z-index:40}
 .tab{padding:10px 14px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:none;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tab.on{color:#1A1D23;border-color:#1A1D23;font-weight:600}
 .sec{display:none}.sec.on{display:block}
 .two-pane{display:flex;min-height:calc(100vh - 120px)}
-.left-pane{width:260px;flex-shrink:0;border-right:1px solid #E4E6EA;background:#fff}
-.right-pane{flex:1;padding:14px;background:#F7F8FA}
-.pane-hdr{padding:10px 14px;border-bottom:1px solid #E4E6EA;font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px}
-.pane-search{padding:8px;border-bottom:1px solid #E4E6EA}
+.lpane{width:260px;flex-shrink:0;border-right:1px solid #E4E6EA;background:#fff}
+.rpane{flex:1;padding:14px;background:#F7F8FA}
+.ph{padding:10px 14px;border-bottom:1px solid #E4E6EA;font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px}
+.ps{padding:8px;border-bottom:1px solid #E4E6EA}
 .pli{padding:10px 14px;border-bottom:1px solid #E4E6EA;cursor:pointer}
-.pli:hover{background:#F7F8FA}
-.pli.on{background:#EFF6FF;border-left:3px solid #2563EB}
-.pli-name{font-size:12px;font-weight:500;margin-bottom:2px;line-height:1.3}
-.pli-sub{font-size:11px;color:#6B7280}
+.pli:hover{background:#F7F8FA}.pli.on{background:#EFF6FF;border-left:3px solid #2563EB}
+.pli-n{font-size:12px;font-weight:500;margin-bottom:2px;line-height:1.3}
+.pli-s{font-size:11px;color:#6B7280}
 .sc-list{display:flex;flex-direction:column;gap:10px}
-.sc{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:14px}
+.sc{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:14px;cursor:pointer}
+.sc:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .sc-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .sc-rank{width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;background:#F7F8FA;color:#6B7280;flex-shrink:0}
 .r1{background:#FFD700!important;color:#7A5C00!important}
@@ -38,377 +35,302 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .r3{background:#D4A574!important;color:#5C3A1E!important}
 .sc-name{font-size:13px;font-weight:600;flex:1;line-height:1.3}
 .sc-score{font-size:18px;font-weight:800;min-width:44px;text-align:right}
-.bar-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.bar-lbl{font-size:10px;color:#6B7280;width:44px;flex-shrink:0}
-.bar-out{flex:1;height:5px;background:#E4E6EA;border-radius:3px}
-.bar-in{height:5px;border-radius:3px}
-.bar-val{font-size:10px;color:#6B7280;min-width:28px;text-align:right}
+.brow{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.blbl{font-size:10px;color:#6B7280;width:44px;flex-shrink:0}
+.bout{flex:1;height:5px;background:#E4E6EA;border-radius:3px}
+.bin{height:5px;border-radius:3px}
+.bval{font-size:10px;color:#6B7280;min-width:28px;text-align:right}
 .sc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
 .stag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
 .stag.hit{background:#E8F7F2;color:#0F9D6E}
 .stag.miss{background:#F7F8FA;color:#9CA3AF;border:1px solid #E4E6EA}
 .sc-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA}
-.sc-meta span{font-size:11px;color:#6B7280}
-.sc-meta strong{color:#1A1D23}
+.sc-meta span{font-size:11px;color:#6B7280}.sc-meta strong{color:#1A1D23}
 .sc-act{margin-top:10px;display:flex;gap:6px}
-.lst-bar{padding:10px 14px;background:#fff;border-bottom:1px solid #E4E6EA;display:flex;gap:8px}
-.lst-grid{padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.lbar{padding:10px 14px;background:#fff;border-bottom:1px solid #E4E6EA;display:flex;gap:6px;flex-wrap:wrap}
+.lgrid{padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .card{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:13px}
-.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
-.card-name{font-size:12px;font-weight:600;flex:1;margin-right:8px;line-height:1.4}
+.ct{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.cn{font-size:12px;font-weight:600;flex:1;margin-right:8px;line-height:1.4}
 .badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;flex-shrink:0}
-.bg-grn{background:#E8F7F2;color:#0F9D6E}
-.bg-amb{background:#FFFBEB;color:#D97706}
-.bg-pur{background:#F5F3FF;color:#7C3AED}
+.bg-g{background:#E8F7F2;color:#0F9D6E}
+.bg-a{background:#FFFBEB;color:#D97706}
+.bg-p{background:#F5F3FF;color:#7C3AED}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
 .tag{font-size:10px;padding:2px 7px;background:#F7F8FA;border:1px solid #E4E6EA;border-radius:6px;color:#6B7280}
-.meta-row{display:flex;flex-wrap:wrap;gap:8px}
-.meta{font-size:11px;color:#6B7280}
-.meta strong{color:#1A1D23}
-.s-input{width:100%;padding:7px 10px;border:1px solid #E4E6EA;border-radius:7px;font-size:12px;background:#F7F8FA;color:#1A1D23}
-.s-input:focus{outline:none;border-color:#2563EB}
-.paste-body{padding:14px;display:flex;gap:12px}
-.paste-col{flex:1}
-.paste-box{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:14px;margin-bottom:12px}
-.paste-title{font-size:13px;font-weight:700;margin-bottom:4px}
-.paste-desc{font-size:11px;color:#6B7280;margin-bottom:8px;line-height:1.5}
-textarea{width:100%;min-height:110px;padding:9px;border:1px solid #E4E6EA;border-radius:7px;font-size:12px;resize:vertical;background:#F7F8FA;color:#1A1D23;line-height:1.6;font-family:inherit}
+.mr{display:flex;flex-wrap:wrap;gap:8px}
+.meta{font-size:11px;color:#6B7280}.meta strong{color:#1A1D23}
+.fb{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;display:inline-block}
+.fn{background:#E8F7F2;color:#0F9D6E}
+.fw{background:#FFFBEB;color:#D97706}
+.fo{background:#FEF2F2;color:#DC2626}
+.stbtn{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;cursor:pointer;border:none;display:inline-block}
+.sa{background:#E8F7F2;color:#0F9D6E}
+.sp2{background:#EFF6FF;color:#2563EB}
+.sc3{background:#F3F4F6;color:#9CA3AF}
+.si{width:100%;padding:7px 10px;border:1px solid #E4E6EA;border-radius:7px;font-size:12px;background:#F7F8FA;color:#1A1D23}
+.si:focus{outline:none;border-color:#2563EB}
+.pbody{padding:14px;max-width:860px;margin:0 auto}
+.pbox{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:14px;margin-bottom:12px}
+.ptitle{font-size:15px;font-weight:700;margin-bottom:6px}
+.pdesc{font-size:11px;color:#6B7280;margin-bottom:12px;line-height:1.5}
+textarea{width:100%;min-height:200px;padding:9px;border:1px solid #E4E6EA;border-radius:7px;font-size:12px;resize:vertical;background:#F7F8FA;color:#1A1D23;line-height:1.6;font-family:inherit}
 textarea:focus{outline:none;border-color:#2563EB}
-.parse-result{margin-top:8px;padding:10px;background:#F7F8FA;border-radius:7px;font-size:11px;line-height:1.8;white-space:pre-wrap;max-height:160px;overflow-y:auto;display:none}
-.parse-result.show{display:block}
+.pr{margin-top:8px;padding:10px;background:#F7F8FA;border-radius:7px;font-size:11px;line-height:1.8;white-space:pre-wrap;max-height:160px;overflow-y:auto;display:none}
+.pr.show{display:block}
 .btn{padding:6px 12px;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer}
-.btn-dk{background:#1A1D23;color:#fff}.btn-dk:hover{opacity:.8}
-.btn-lt{background:#F7F8FA;border:1px solid #E4E6EA;color:#1A1D23}.btn-lt:hover{background:#E4E6EA}
-/* モーダル - position:fixedではなくフロー内に配置 */
-.modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:16px;align-items:center;justify-content:center}
-.modal-wrap.show{display:flex}
-.modal{background:#fff;border-radius:14px;width:100%;max-width:540px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.modal-hdr{padding:14px 18px;border-bottom:1px solid #E4E6EA;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
-.modal-title{font-size:13px;font-weight:700}
-.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:#6B7280;line-height:1}
-.modal-body{padding:16px 18px;overflow-y:auto;flex:1}
-.modal-foot{padding:10px 18px;border-top:1px solid #E4E6EA;display:flex;gap:6px;justify-content:flex-end;flex-shrink:0}
-.proposal{font-size:12px;line-height:1.9;white-space:pre-wrap;color:#1A1D23}
-.loading{text-align:center;padding:40px;color:#6B7280}
-.empty{text-align:center;padding:50px;color:#9CA3AF;font-size:13px}
+.btn-d{background:#1A1D23;color:#fff}.btn-d:hover{opacity:.8}
+.btn-l{background:#F7F8FA;border:1px solid #E4E6EA;color:#1A1D23}.btn-l:hover{background:#E4E6EA}
+.mow{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}
+.mow.show{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.mh{padding:14px 18px;border-bottom:1px solid #E4E6EA;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.mt2{font-size:13px;font-weight:700}
+.mc{background:none;border:none;font-size:22px;cursor:pointer;color:#6B7280}
+.mb{padding:16px 18px;overflow-y:auto;flex:1}
+.mf{padding:10px 18px;border-top:1px solid #E4E6EA;display:flex;gap:6px;justify-content:flex-end;flex-shrink:0}
+.dsec{margin-bottom:14px}
+.dsh{font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #E4E6EA}
+.drow{display:flex;gap:8px;margin-bottom:5px;font-size:12px}
+.dlbl{color:#6B7280;min-width:70px;flex-shrink:0;font-size:11px}
+.dval{color:#1A1D23;font-weight:500;flex:1}
+.dtags{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px}
+.dtag{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+.dtag.hit{background:#E8F7F2;color:#0F9D6E}
+.dtag.miss{background:#FEF2F2;color:#DC2626}
+.dtag.neu{background:#F5F3FF;color:#7C3AED}
+.ssum{display:flex;gap:10px;background:#F7F8FA;border-radius:8px;padding:12px;margin-bottom:14px}
+.sblk{flex:1;text-align:center}
+.sblkv{font-size:20px;font-weight:800}
+.sblkl{font-size:10px;color:#6B7280;margin-top:2px}
+.cpbtn{width:100%;padding:10px 14px;background:#F7F8FA;border:1px dashed #E4E6EA;border-radius:8px;font-size:12px;color:#6B7280;cursor:pointer;text-align:left;margin-top:8px;line-height:1.7}
+.cpbtn:hover{background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF}
+.gbox{max-width:600px;margin:20px auto;padding:0 14px}
+.gi{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:16px;margin-bottom:12px}
+.gt{font-size:13px;font-weight:700;margin-bottom:8px}
+.gd{font-size:11px;color:#6B7280;line-height:1.8;margin-bottom:12px}
+.gs{background:#F7F8FA;border-radius:8px;padding:12px;font-size:11px;line-height:2;color:#6B7280;margin-top:10px}
+.abanner{background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px;margin:14px;font-size:12px}
+.prev-item{background:#F7F8FA;border:1px solid #E4E6EA;border-radius:8px;padding:10px 12px;margin-bottom:8px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid #E4E6EA;border-top-color:#1A1D23;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-/* GAS設定 */
-.gas-box{max-width:600px;margin:20px auto;padding:0 14px}
-.gas-inner{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:16px}
-.gas-title{font-size:13px;font-weight:700;margin-bottom:8px}
-.gas-desc{font-size:11px;color:#6B7280;line-height:1.8;margin-bottom:14px}
-.gas-steps{background:#F7F8FA;border-radius:8px;padding:12px;font-size:11px;line-height:2;color:#6B7280;margin-top:12px}
-/* APIキー設定 */
-.apikey-banner{background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px;margin:14px;font-size:12px}
-.apikey-banner h3{font-size:13px;font-weight:600;color:#C2410C;margin-bottom:6px}
-.apikey-banner p{color:#9A3412;line-height:1.6;margin-bottom:8px}
-.apikey-banner input{width:100%;padding:7px 10px;border:1px solid #FED7AA;border-radius:6px;font-size:12px;background:#fff;margin-bottom:8px}
-
-/* 詳細モーダル */
-.detail-section{margin-bottom:14px}
-.detail-section-title{font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #E4E6EA}
-.detail-row{display:flex;gap:8px;margin-bottom:6px;font-size:12px}
-.detail-label{color:#6B7280;min-width:70px;flex-shrink:0}
-.detail-value{color:#1A1D23;font-weight:500;flex:1}
-.detail-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-.detail-tag{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
-.detail-tag.hit{background:#E8F7F2;color:#0F9D6E}
-.detail-tag.miss{background:#FEF2F2;color:#DC2626}
-.detail-tag.neutral{background:#F5F3FF;color:#7C3AED}
-.score-summary{display:flex;gap:10px;background:#F7F8FA;border-radius:8px;padding:12px;margin-bottom:14px}
-.score-block{flex:1;text-align:center}
-.score-block-val{font-size:20px;font-weight:800}
-.score-block-lbl{font-size:10px;color:#6B7280;margin-top:2px}
-.copy-prompt-btn{width:100%;padding:10px;background:#F7F8FA;border:1px dashed #E4E6EA;border-radius:8px;font-size:11px;color:#6B7280;cursor:pointer;text-align:left;margin-top:8px;line-height:1.6}
-.copy-prompt-btn:hover{background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF}
-
-@media(max-width:600px){
-  .two-pane{flex-direction:column}
-  .left-pane{width:100%;border-right:none;border-bottom:1px solid #E4E6EA}
-  .paste-body{flex-direction:column}
-}
+.empty{text-align:center;padding:50px;color:#9CA3AF}
+@media(max-width:600px){.two-pane{flex-direction:column}.lpane{width:100%;border-right:none;border-bottom:1px solid #E4E6EA}}
 </style>
 </head>
 <body>
 
 <div class="hdr">
-  <div>
-    <div class="hdr-title">SKET マッチングツール</div>
-    <div class="hdr-sub">SES案件 × 要員 自動マッチング</div>
-  </div>
+  <div><div class="hdr-title">SKET マッチングツール</div><div class="hdr-sub">SES案件 x 要員 自動マッチング</div></div>
   <div class="hdr-stats">
-    <div><div class="stat-v" id="s-proj">-</div><div class="stat-l">案件</div></div>
-    <div><div class="stat-v" id="s-stf">-</div><div class="stat-l">要員</div></div>
-    <div><div class="stat-v" id="s-upd">-</div><div class="stat-l">更新</div></div>
+    <div><div class="sv" id="sp">-</div><div class="sl">案件</div></div>
+    <div><div class="sv" id="ss">-</div><div class="sl">要員</div></div>
+    <div><div class="sv" id="su">-</div><div class="sl">更新</div></div>
   </div>
-  <button class="hdr-btn" onclick="loadData()">↻ 再読込</button>
+  <button class="hbtn" onclick="loadData()">↻ 再読込</button>
 </div>
 
-<!-- APIキー未設定の場合に表示するバナー -->
-<div class="apikey-banner" id="apikey-banner" style="display:none">
-  <h3>⚠️ Anthropic APIキーが必要です</h3>
-  <p>「提案文を生成」と「情報追加のAI解析」機能を使うにはAPIキーの設定が必要です。<br>
-  <a href="https://console.anthropic.com/" target="_blank" style="color:#C2410C">console.anthropic.com</a> でAPIキーを取得してください。</p>
-  <input type="password" id="apikey-input" placeholder="sk-ant-api03-..." oninput="saveApiKey(this.value)">
-  <div style="font-size:10px;color:#9A3412">※ このキーはお使いのブラウザにのみ保存されます。外部には送信されません。</div>
+<div id="apibanner" class="abanner" style="display:none">
+  <div style="font-size:13px;font-weight:600;color:#C2410C;margin-bottom:6px">APIキーが必要です</div>
+  <div style="color:#9A3412;line-height:1.6;margin-bottom:8px;font-size:11px">情報追加のAI解析に必要です。console.anthropic.com で取得してください。</div>
+  <input type="password" class="si" id="apibanner-inp" placeholder="sk-ant-api03-..." style="border-color:#FED7AA;background:#fff" oninput="saveApiKey(this.value)">
 </div>
 
 <div class="tabs">
-  <button class="tab on" onclick="tab('match',this)">🎯 マッチング</button>
-  <button class="tab"    onclick="tab('rev',this)">🔍 逆引き検索</button>
-  <button class="tab"    onclick="tab('projs',this)">📋 案件一覧</button>
-  <button class="tab"    onclick="tab('staffs',this)">👤 要員一覧</button>
-  <button class="tab"    onclick="tab('paste',this)">📥 情報追加</button>
-  <button class="tab"    onclick="tab('settings',this)">⚙️ 設定</button>
+  <button class="tab on" onclick="doTab(this)" data-tab="match">マッチング</button>
+  <button class="tab" onclick="doTab(this)" data-tab="rev">逆引き検索</button>
+  <button class="tab" onclick="doTab(this)" data-tab="projs">案件一覧</button>
+  <button class="tab" onclick="doTab(this)" data-tab="staffs">要員一覧</button>
+  <button class="tab" onclick="doTab(this)" data-tab="paste">情報追加</button>
+  <button class="tab" onclick="doTab(this)" data-tab="cfg">設定</button>
 </div>
 
-<!-- マッチング -->
 <div id="tab-match" class="sec on">
   <div class="two-pane">
-    <div class="left-pane">
-      <div class="pane-hdr">要員を選択</div>
-      <div class="pane-search"><input class="s-input" placeholder="名前・スキルで検索..." oninput="filterStaffList(this.value)"></div>
-      <div id="staff-plist"><div class="loading"><span class="spin"></span>読み込み中...</div></div>
+    <div class="lpane">
+      <div class="ph">要員を選択</div>
+      <div class="ps"><input class="si" placeholder="名前・スキルで検索..." oninput="filterSL(this.value)"></div>
+      <div id="slst"><div class="empty"><span class="spin"></span>読み込み中</div></div>
     </div>
-    <div class="right-pane" id="match-result">
-      <div class="empty">👈 左の要員を選択するとマッチング結果が表示されます</div>
-    </div>
+    <div class="rpane" id="mres"><div class="empty">左の要員を選択してください</div></div>
   </div>
 </div>
 
-<!-- 逆引き -->
 <div id="tab-rev" class="sec">
   <div class="two-pane">
-    <div class="left-pane">
-      <div class="pane-hdr">案件を選択</div>
-      <div class="pane-search"><input class="s-input" placeholder="案件名・スキルで検索..." oninput="filterProjList(this.value)"></div>
-      <div id="proj-plist"><div class="loading"><span class="spin"></span>読み込み中...</div></div>
+    <div class="lpane">
+      <div class="ph">案件を選択</div>
+      <div class="ps"><input class="si" placeholder="案件名・スキルで検索..." oninput="filterPL(this.value)"></div>
+      <div id="plst"><div class="empty"><span class="spin"></span>読み込み中</div></div>
     </div>
-    <div class="right-pane" id="rev-result">
-      <div class="empty">👈 左の案件を選択すると合う要員が表示されます</div>
-    </div>
+    <div class="rpane" id="rres"><div class="empty">左の案件を選択してください</div></div>
   </div>
 </div>
 
-<!-- 案件一覧 -->
 <div id="tab-projs" class="sec">
-  <div class="lst-bar">
-    <input class="s-input" style="flex:1" placeholder="案件名・スキルで検索..." oninput="renderProjGrid(filterArr(PROJECTS,this.value))">
-    <select class="s-input" style="width:110px" onchange="filterProjRemote(this.value)">
-      <option value="">全て</option>
-      <option value="リモート">リモート可</option>
-      <option value="常駐">常駐</option>
+  <div class="lbar">
+    <input class="si" style="flex:1;min-width:120px" placeholder="案件名・スキルで検索..." oninput="renderPG(fArr(PROJECTS,this.value))">
+    <select class="si" style="width:90px" onchange="fPR(this.value)">
+      <option value="">勤務:全て</option><option value="r">リモート可</option><option value="s">常駐</option>
+    </select>
+    <select class="si" style="width:90px" onchange="fPS(this.value)">
+      <option value="">状態:全て</option><option value="active">募集中</option><option value="proposing">提案中</option><option value="closed">終了</option>
+    </select>
+    <select class="si" style="width:105px" onchange="fPF(this.value)">
+      <option value="">鮮度:全て</option><option value="new">新鮮(2週以内)</option><option value="warn">要確認(1ヶ月)</option><option value="old">期限切れ</option>
     </select>
   </div>
-  <div class="lst-grid" id="proj-grid"></div>
+  <div class="lgrid" id="pgrid"></div>
 </div>
 
-<!-- 要員一覧 -->
 <div id="tab-staffs" class="sec">
-  <div class="lst-bar">
-    <input class="s-input" style="flex:1" placeholder="名前・スキルで検索..." oninput="renderStaffGrid(filterArr(STAFF,this.value))">
+  <div class="lbar">
+    <input class="si" style="flex:1;min-width:120px" placeholder="名前・スキルで検索..." oninput="renderSG(fArr(STAFF,this.value))">
+    <select class="si" style="width:90px" onchange="fSS(this.value)">
+      <option value="">状態:全て</option><option value="active">募集中</option><option value="proposing">提案中</option><option value="closed">終了</option>
+    </select>
+    <select class="si" style="width:105px" onchange="fSF(this.value)">
+      <option value="">鮮度:全て</option><option value="new">新鮮(2週以内)</option><option value="warn">要確認(1ヶ月)</option><option value="old">期限切れ</option>
+    </select>
   </div>
-  <div class="lst-grid" id="staff-grid"></div>
+  <div class="lgrid" id="sgrid"></div>
 </div>
 
-<!-- 情報追加 -->
 <div id="tab-paste" class="sec">
   <div style="padding:10px 14px;background:#fff;border-bottom:1px solid #E4E6EA;font-size:12px;color:#6B7280">
-    📌 LINEやメールから受け取ったテキストをそのまま貼り付けるだけで、AIが自動解析してツールとスプレッドシートに追加します
+    案件でも要員でも混在でも複数件でも、そのまま貼り付けるだけ。AIが自動識別してDBとスプレッドシートに追加します
   </div>
-  <div class="paste-body">
-    <div class="paste-col">
-      <div class="paste-box">
-        <div class="paste-title">📋 案件情報を追加</div>
-        <div class="paste-desc">LINEやメールの案件テキストをそのまま貼り付けてください。</div>
-        <textarea id="proj-ta" placeholder="例：
-【案件名】ECサイトリニューアル
-必須：React、TypeScript（3年以上）
-単価：70〜80万円
-フルリモート
-2026年7月〜"></textarea>
-        <div style="margin-top:8px;display:flex;gap:6px">
-          <button class="btn btn-dk" onclick="parseAdd('project')">AIで解析してDBに追加</button>
-          <button class="btn btn-lt" onclick="document.getElementById('proj-ta').value=''">クリア</button>
-        </div>
-        <div class="parse-result" id="proj-parse"></div>
+  <div class="pbody">
+    <div class="pbox">
+      <div class="ptitle">なんでも貼り付けてください</div>
+      <div class="pdesc">案件・要員・複数件混在・配信番号付き、どんな形式でもOKです。AIが自動で識別して振り分けます。</div>
+      <textarea id="allta" placeholder="ここにLINEやメールのテキストをそのまま貼り付けてください。"></textarea>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-d" style="padding:8px 20px;font-size:13px" onclick="parseAll()">AIで自動識別してDBに追加</button>
+        <button class="btn btn-l" onclick="clearPaste()">クリア</button>
+        <span id="allcnt" style="font-size:12px;color:#6B7280"></span>
       </div>
+      <div class="pr" id="allpr"></div>
     </div>
-    <div class="paste-col">
-      <div class="paste-box">
-        <div class="paste-title">👤 要員情報を追加</div>
-        <div class="paste-desc">BPから受け取った要員プロフィールを貼り付けてください。</div>
-        <textarea id="stf-ta" placeholder="例：
-【氏名】A.B（32歳/男性）
-【スキル】Java、SpringBoot、AWS（5年）
-【単価】65万〜
-【稼働】即日〜
-【リモート】フルリモート希望"></textarea>
-        <div style="margin-top:8px;display:flex;gap:6px">
-          <button class="btn btn-dk" onclick="parseAdd('staff')">AIで解析してDBに追加</button>
-          <button class="btn btn-lt" onclick="document.getElementById('stf-ta').value=''">クリア</button>
-        </div>
-        <div class="parse-result" id="stf-parse"></div>
+    <div id="allprev" style="display:none">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">解析結果（BP名を確認・入力してから追加してください）</div>
+      <div id="prevp"></div>
+      <div id="prevs"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-d" style="padding:8px 20px" onclick="confirmAdd()">この内容でDBに追加する</button>
+        <button class="btn btn-l" onclick="hidePreview()">やり直す</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 設定 -->
-<div id="tab-settings" class="sec">
-  <div class="gas-box">
-    <div class="gas-inner" style="margin-bottom:12px">
-      <div class="gas-title">🔑 Anthropic APIキー設定</div>
-      <div class="gas-desc">
-        提案文の自動生成・情報追加のAI解析に必要です。<br>
-        <a href="https://console.anthropic.com/" target="_blank" style="color:#2563EB">console.anthropic.com</a> でAPIキーを取得してください（有料・従量課金）。<br>
-        キーはこのブラウザにのみ保存され、外部には送信されません。
-      </div>
-      <input class="s-input" type="password" id="apikey-setting" placeholder="sk-ant-api03-..." style="margin-bottom:8px">
+<div id="tab-cfg" class="sec">
+  <div class="gbox">
+    <div class="gi">
+      <div class="gt">Anthropic APIキー設定</div>
+      <div class="gd">情報追加のAI解析に必要です。console.anthropic.com で取得できます（1回あたり約1円以下）。キーはこのブラウザにのみ保存されます。</div>
+      <input class="si" type="password" id="apiinp" placeholder="sk-ant-api03-..." style="margin-bottom:8px">
       <div style="display:flex;gap:6px">
-        <button class="btn btn-dk" onclick="saveApiKeyFromSetting()">保存</button>
-        <button class="btn btn-lt" onclick="clearApiKey()">削除</button>
+        <button class="btn btn-d" onclick="saveApiKeySet()">保存</button>
+        <button class="btn btn-l" onclick="clearApiKey()">削除</button>
       </div>
-      <div id="apikey-status" style="margin-top:8px;font-size:11px;color:#6B7280"></div>
+      <div id="apist" style="margin-top:8px;font-size:11px;color:#6B7280"></div>
     </div>
-
-    <div class="gas-inner">
-      <div class="gas-title">🔗 Googleスプレッドシート連携（GAS URL）</div>
-      <div class="gas-desc">
-        スプレッドシートのデータを読み込んだり、情報追加をスプシに保存するためのURLです。<br>
-        GASのデプロイURLを設定してください。
-      </div>
-      <input class="s-input" id="gas-url-input" placeholder="https://script.google.com/macros/s/〇〇〇/exec" style="margin-bottom:8px">
+    <div class="gi">
+      <div class="gt">Googleスプレッドシート連携（GAS URL）</div>
+      <div class="gd">スプレッドシートのデータを読み込み・追加するためのURLです。</div>
+      <input class="si" id="gasinp" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:8px">
       <div style="display:flex;gap:6px">
-        <button class="btn btn-dk" onclick="saveGasUrl()">保存して再読込</button>
-        <button class="btn btn-lt" onclick="testGasUrl()">接続テスト</button>
+        <button class="btn btn-d" onclick="saveGasUrl()">保存して再読込</button>
+        <button class="btn btn-l" onclick="testGas()">接続テスト</button>
       </div>
-      <div id="gas-test-result" style="margin-top:8px;font-size:11px;color:#6B7280"></div>
-      <div class="gas-steps">
-        <div style="font-weight:600;color:#1A1D23;margin-bottom:4px">GAS URLの取得手順</div>
-        <div>1. スプレッドシート →「拡張機能」→「Apps Script」</div>
-        <div>2. step2_gas.js の内容を貼り付け・スプレッドシートIDを変更</div>
-        <div>3.「デプロイ」→「新しいデプロイ」→「ウェブアプリ」</div>
-        <div>4. アクセスできるユーザー：<strong style="color:#1A1D23">全員</strong> に設定</div>
-        <div>5. 表示されたURLをここに貼り付ける</div>
+      <div id="gasst" style="margin-top:8px;font-size:11px;color:#6B7280"></div>
+      <div class="gs">
+        <div style="font-weight:600;color:#1A1D23;margin-bottom:4px">GAS URL取得手順</div>
+        <div>1. スプレッドシート → 拡張機能 → Apps Script</div>
+        <div>2. step2_gas.js の内容を貼り付けてスプレッドシートIDを変更</div>
+        <div>3. デプロイ → 新しいデプロイ → ウェブアプリ</div>
+        <div>4. アクセスできるユーザー：全員 に設定してURLをコピー</div>
       </div>
     </div>
   </div>
 </div>
 
-
-<!-- 詳細モーダル -->
-<div class="modal-wrap" id="detail-modal">
-  <div class="modal" style="max-width:580px">
-    <div class="modal-hdr">
-      <div class="modal-title" id="detail-modal-ttl">詳細情報</div>
-      <button class="modal-close" onclick="closeDetailModal()">×</button>
-    </div>
-    <div class="modal-body" id="detail-modal-body"></div>
-    <div class="modal-foot">
-      <button class="btn btn-lt" onclick="closeDetailModal()">閉じる</button>
-    </div>
-  </div>
-</div>
-
-<!-- 提案文モーダル -->
-<div class="modal-wrap" id="modal">
+<div class="mow" id="detmodal">
   <div class="modal">
-    <div class="modal-hdr">
-      <div class="modal-title" id="modal-ttl">提案文</div>
-      <button class="modal-close" onclick="closeModal()">×</button>
-    </div>
-    <div class="modal-body"><div class="proposal" id="modal-body"></div></div>
-    <div class="modal-foot">
-      <button class="btn btn-lt" onclick="copyProposal()">📋 コピー</button>
-      <button class="btn btn-lt" onclick="closeModal()">閉じる</button>
-    </div>
+    <div class="mh"><div class="mt2" id="detttl">詳細</div><button class="mc" onclick="closeDetModal()">x</button></div>
+    <div class="mb" id="detbody"></div>
+    <div class="mf"><button class="btn btn-l" onclick="closeDetModal()">閉じる</button></div>
   </div>
 </div>
 
 <script>
-// ══════════════════════════════════════════════
-// 設定（localStorageで永続保存）
-// ══════════════════════════════════════════════
-let GAS_URL   = localStorage.getItem('sket_gas_url')  || '';
-let API_KEY   = localStorage.getItem('sket_api_key')  || '';
+var GAS_URL = localStorage.getItem('sket_gas_url') || '';
+var API_KEY = localStorage.getItem('sket_api_key') || '';
+var PROJECTS = [], STAFF = [];
+var _pendP = [], _pendS = [];
+var _curPrompt = '';
 
-window.addEventListener('load', () => {
-  if (GAS_URL) document.getElementById('gas-url-input').value = GAS_URL;
+window.addEventListener('load', function() {
+  if (GAS_URL) document.getElementById('gasinp').value = GAS_URL;
   if (API_KEY) {
-    document.getElementById('apikey-setting').value = API_KEY;
-    document.getElementById('apikey-status').textContent = '✅ APIキーが設定されています';
-    document.getElementById('apikey-status').style.color = '#0F9D6E';
+    document.getElementById('apiinp').value = API_KEY;
+    document.getElementById('apist').textContent = 'APIキーが設定されています';
+    document.getElementById('apist').style.color = '#0F9D6E';
   } else {
-    document.getElementById('apikey-banner').style.display = 'block';
+    document.getElementById('apibanner').style.display = 'block';
   }
 });
 
-function saveApiKey(val) {
-  API_KEY = val.trim();
+function saveApiKey(v) {
+  API_KEY = v.trim();
   localStorage.setItem('sket_api_key', API_KEY);
-  if (API_KEY) document.getElementById('apikey-banner').style.display = 'none';
+  if (API_KEY) document.getElementById('apibanner').style.display = 'none';
 }
-
-function saveApiKeyFromSetting() {
-  const val = document.getElementById('apikey-setting').value.trim();
-  if (!val) { alert('APIキーを入力してください'); return; }
-  saveApiKey(val);
-  const st = document.getElementById('apikey-status');
-  st.textContent = '✅ 保存しました！';
-  st.style.color = '#0F9D6E';
-  document.getElementById('apikey-banner').style.display = 'none';
+function saveApiKeySet() {
+  var v = document.getElementById('apiinp').value.trim();
+  if (!v) { alert('APIキーを入力してください'); return; }
+  saveApiKey(v);
+  document.getElementById('apist').textContent = '保存しました';
+  document.getElementById('apist').style.color = '#0F9D6E';
 }
-
 function clearApiKey() {
   API_KEY = '';
   localStorage.removeItem('sket_api_key');
-  document.getElementById('apikey-setting').value = '';
-  document.getElementById('apikey-status').textContent = 'APIキーを削除しました';
-  document.getElementById('apikey-status').style.color = '#6B7280';
-  document.getElementById('apikey-banner').style.display = 'block';
+  document.getElementById('apiinp').value = '';
+  document.getElementById('apist').textContent = '削除しました';
+  document.getElementById('apist').style.color = '#6B7280';
+  document.getElementById('apibanner').style.display = 'block';
 }
-
 function saveGasUrl() {
-  const url = document.getElementById('gas-url-input').value.trim();
-  if (!url) { alert('URLを入力してください'); return; }
-  GAS_URL = url;
-  localStorage.setItem('sket_gas_url', url);
-  alert('保存しました！データを再読込します。');
+  var u = document.getElementById('gasinp').value.trim();
+  if (!u) { alert('URLを入力してください'); return; }
+  GAS_URL = u;
+  localStorage.setItem('sket_gas_url', u);
+  alert('保存しました');
   loadData();
 }
-
-async function testGasUrl() {
-  const url = document.getElementById('gas-url-input').value.trim();
-  const rs  = document.getElementById('gas-test-result');
-  if (!url) { rs.textContent = '⚠️ URLを入力してください'; return; }
-  rs.textContent = '🔄 接続テスト中...';
-  try {
-    const r = await fetch(url + '?type=all');
-    const d = await r.json();
-    if ((d.projects||[]).length > 0 || (d.staff||[]).length > 0) {
-      rs.textContent = `✅ 接続成功！案件 ${(d.projects||[]).length}件 / 要員 ${(d.staff||[]).length}名`;
-      rs.style.color = '#0F9D6E';
-    } else {
-      rs.textContent = '⚠️ 接続できましたがデータが見つかりません。シート名を確認してください。';
-      rs.style.color = '#D97706';
-    }
-  } catch(e) {
-    rs.textContent = '❌ 接続失敗: ' + e.message;
-    rs.style.color = '#DC2626';
-  }
+function testGas() {
+  var u = document.getElementById('gasinp').value.trim();
+  var st = document.getElementById('gasst');
+  if (!u) { st.textContent = 'URLを入力してください'; return; }
+  st.textContent = '接続テスト中...';
+  fetch(u + '?type=all').then(function(r) { return r.json(); }).then(function(d) {
+    var pc = (d.projects||[]).length, sc2 = (d.staff||[]).length;
+    st.textContent = '接続成功！案件' + pc + '件・要員' + sc2 + '名';
+    st.style.color = '#0F9D6E';
+  }).catch(function(e) {
+    st.textContent = '接続失敗: ' + e.message;
+    st.style.color = '#DC2626';
+  });
 }
 
-// ══════════════════════════════════════════════
-// Claude API呼び出し（APIキー使用）
-// ══════════════════════════════════════════════
-async function callClaude(prompt) {
+function callClaude(prompt) {
   if (!API_KEY) {
-    tab('settings', document.querySelectorAll('.tab')[5]);
-    throw new Error('APIキーが設定されていません。「⚙️ 設定」タブでAPIキーを設定してください。');
+    doTab(document.querySelectorAll('.tab')[5], 'cfg');
+    return Promise.reject(new Error('APIキーが設定されていません。設定タブで設定してください。'));
   }
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  return fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -417,453 +339,436 @@ async function callClaude(prompt) {
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
+      model: 'claude-opus-4-5',
+      max_tokens: 1500,
+      messages: [{role: 'user', content: prompt}]
     })
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error((e.error && e.error.message) || 'APIエラー'); });
+    return r.json();
+  }).then(function(d) {
+    var t = d.content && d.content.find(function(c) { return c.type === 'text'; });
+    return t ? t.text : '';
   });
-  if (!r.ok) {
-    const err = await r.json().catch(()=>({}));
-    throw new Error(err.error?.message || `APIエラー (${r.status})`);
-  }
-  const d = await r.json();
-  return d.content?.find(c => c.type === 'text')?.text || '';
 }
 
-// ══════════════════════════════════════════════
-// サンプルデータ
-// ══════════════════════════════════════════════
-const SAMPLE_PROJECTS = [
-  {id:1,name:"大規模ECサイト開発・保守（上流〜開発）",skills:["Java"],unit:"スキル見合い",unit_max:80,remote:"フルリモート",start:"随時",source:"フリースタイル"},
-  {id:2,name:"製造データマートシステム開発・運用",skills:["Python","Java","SQL","ETL"],unit:"スキル見合い",unit_max:70,remote:"基本出社",start:"2026/6",source:"フリースタイル"},
-  {id:3,name:"大手総合商社DXリードデータサイエンティスト",skills:["Python","機械学習","PM","データ分析"],unit:"110万円程度",unit_max:110,remote:"一部リモート",start:"2026/6/1",source:"Arcxia"},
-  {id:4,name:"大手総合商社DXデータ基盤構築BizOpsエンジニア",skills:["Python","TypeScript","Terraform","AWS","React"],unit:"100万円程度",unit_max:100,remote:"一部リモート",start:"2026/6/1",source:"Arcxia"},
-  {id:5,name:"ゼロトラスト環境整備・運用案件",skills:["Python","Node.js","AWS","Terraform"],unit:"70万円程度",unit_max:70,remote:"フルリモート",start:"2026/6",source:"オーライン"},
-  {id:6,name:"生成AIチャットボット開発",skills:["TypeScript","LLM","LangChain"],unit:"60万円",unit_max:60,remote:"フルリモート",start:"随時",source:"オーライン"},
-  {id:7,name:"販売管理システム開発（PM）",skills:["C#","Java","要件定義","PM"],unit:"70万程度",unit_max:70,remote:"常駐",start:"即日",source:"アリザータ"},
-  {id:8,name:"PostgreSQL DB設計構築案件",skills:["PostgreSQL","SQL","顧客折衝"],unit:"70万円程",unit_max:70,remote:"基本リモート",start:"2026/6-7",source:"アリザータ"},
-  {id:9,name:"ケーブルテレビ基幹システム刷新",skills:["Java","SpringBoot","JavaScript"],unit:"60万前後",unit_max:65,remote:"週1リモート",start:"2026/7",source:"株式会社TERRA"},
-  {id:10,name:"Web顧客管理システム開発（React）",skills:["React","TypeScript","フロントエンド"],unit:"60万円前後",unit_max:65,remote:"フルリモート",start:"2026/6-7",source:"リーバライズ"},
-  {id:11,name:"製薬会社向けSAP再構築コンサル・SE",skills:["SAP","FI","CO"],unit:"スキル見合い",unit_max:100,remote:"フルリモート",start:"2026/6-7",source:"フリースタイル"},
-  {id:12,name:"生成AI活用支援システムAIエンジニア",skills:["Python","LLM","RAG","AIエージェント"],unit:"85万円",unit_max:85,remote:"フルリモート",start:"2026/6-7",source:"オルタナエクス"},
-  {id:13,name:"React/Go Webアプリ・API開発",skills:["React","Go","AWS","Docker"],unit:"100万円",unit_max:100,remote:"リモート中心",start:"2026/6",source:"Laughus"},
-  {id:14,name:"フルリモート・バックエンド開発（就活支援）",skills:["Java","Kotlin","SpringBoot","React"],unit:"80万円程度",unit_max:80,remote:"フルリモート",start:"2026/6",source:"Arcxia"},
-  {id:15,name:"福祉事業所向け自社サービスバックエンド開発",skills:["Ruby on Rails","TypeScript","AWS"],unit:"90万円",unit_max:90,remote:"フルリモート",start:"随時",source:"オルタナエクス"},
-  {id:16,name:"ヘルスケアサービス新規開発・保守",skills:["PHP","Laravel","TypeScript","React","AWS"],unit:"69万円",unit_max:69,remote:"基本リモート",start:"即日",source:"オルタナエクス"},
-  {id:17,name:"AIエージェント開発エンジニア",skills:["Python","LLM","SaaS","AI"],unit:"80万円",unit_max:80,remote:"ハイブリッド",start:"2026/5-7",source:"オルタナエクス"},
-  {id:18,name:"Kubernetes環境構築・保守案件",skills:["Kubernetes","k8s","Linux","Docker"],unit:"スキル見合い",unit_max:80,remote:"フルリモート",start:"2026/7",source:"Arcxia"},
-  {id:19,name:"大手外食チェーン向け基幹・業務システム開発",skills:["React","C#","PM","PL","要件定義"],unit:"75万",unit_max:75,remote:"ハイブリッド",start:"即日",source:"Laughus"},
-  {id:20,name:"横断PM/PMO複数PJ進捗管理・統括",skills:["PMO","PM","マルチプロジェクト管理"],unit:"100万円",unit_max:100,remote:"基本フルリモート",start:"2026/7",source:"オルタナエクス"},
-  {id:21,name:"既存Webアプリリプレイス（リードクラス）",skills:["PHP","Laravel","DDD"],unit:"75万円",unit_max:75,remote:"フルリモート",start:"2026/5-6",source:"オルタナエクス"},
-  {id:22,name:"RAG・検索パイプライン改善リードエンジニア",skills:["RAG","Python","TypeScript","PostgreSQL","AWS"],unit:"90〜150万円",unit_max:150,remote:"フルリモート",start:"要相談",source:"Laughus"},
-  {id:23,name:"鉄道開発保守向けJAVA設計・開発",skills:["Java"],unit:"50万",unit_max:50,remote:"常駐",start:"即日",source:"モノックス"},
-  {id:24,name:"証券向けシステム開発（Java）",skills:["Java","SQL","Linux","バッチ"],unit:"50万円",unit_max:50,remote:"リモート併用",start:"2026/7",source:"株式会社エムアイメイズ"},
-  {id:25,name:"生保システム保守・新商品対応",skills:["COBOL","IBM汎用機"],unit:"45万",unit_max:45,remote:"週3-4テレワーク",start:"2026/7",source:"Groovit"},
+function getFresh(ds) {
+  if (!ds) return {label:'不明', cls:'fw', days:-1};
+  var p = ds.split('/');
+  var d = p.length === 3 ? new Date(+p[0], +p[1]-1, +p[2]) : new Date(ds);
+  if (isNaN(d.getTime())) return {label:'不明', cls:'fw', days:-1};
+  var days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (days <= 14) return {label: days + '日前', cls:'fn', days:days};
+  if (days <= 30) return {label: days + '日前', cls:'fw', days:days};
+  return {label: days + '日前!', cls:'fo', days:days};
+}
+function getAllSt() { try { return JSON.parse(localStorage.getItem('sket_st') || '{}'); } catch(e) { return {}; } }
+function getSt(type, id) { var a = getAllSt(); return (a[type] && a[type][id]) || 'active'; }
+function setSt(type, id, val) { var a = getAllSt(); if (!a[type]) a[type] = {}; a[type][id] = val; localStorage.setItem('sket_st', JSON.stringify(a)); }
+function stLbl(s) { return s === 'active' ? '募集中' : s === 'proposing' ? '提案中' : '終了'; }
+function stCls2(s) { return s === 'active' ? 'sa' : s === 'proposing' ? 'sp2' : 'sc3'; }
+function cycleSt(type, id, btn) {
+  var cur = getSt(type, id);
+  var next = cur === 'active' ? 'proposing' : cur === 'proposing' ? 'closed' : 'active';
+  setSt(type, id, next);
+  btn.textContent = stLbl(next);
+  btn.className = 'stbtn ' + stCls2(next);
+  var card = btn.closest('.card');
+  if (card) card.style.opacity = next === 'closed' ? '0.4' : '1';
+}
+
+var SAMPLE_P = [
+  {id:1,name:'大規模ECサイト開発・保守',skills:['Java'],unit:'スキル見合い',unit_max:80,remote:'フルリモート',start:'随時',source:'フリースタイル',date:''},
+  {id:2,name:'大手総合商社DXデータサイエンティスト',skills:['Python','機械学習','PM'],unit:'110万円程度',unit_max:110,remote:'一部リモート',start:'2026/6/1',source:'Arcxia',date:''},
+  {id:3,name:'ゼロトラスト環境整備・運用',skills:['Python','Node.js','AWS'],unit:'70万円程度',unit_max:70,remote:'フルリモート',start:'2026/6',source:'オーライン',date:''},
+  {id:4,name:'生成AIチャットボット開発',skills:['TypeScript','LLM','LangChain'],unit:'60万円',unit_max:60,remote:'フルリモート',start:'随時',source:'オーライン',date:''},
+  {id:5,name:'Web顧客管理システム開発（React）',skills:['React','TypeScript'],unit:'60万円前後',unit_max:65,remote:'フルリモート',start:'2026/6-7',source:'リーバライズ',date:''},
+  {id:6,name:'生成AI活用支援システムAIエンジニア',skills:['Python','LLM','RAG'],unit:'85万円',unit_max:85,remote:'フルリモート',start:'2026/6-7',source:'オルタナエクス',date:''},
+  {id:7,name:'React/Go Webアプリ・API開発',skills:['React','Go','AWS'],unit:'100万円',unit_max:100,remote:'リモート中心',start:'2026/6',source:'Laughus',date:''},
+  {id:8,name:'バックエンド開発（就活支援）',skills:['Java','Kotlin','SpringBoot'],unit:'80万円程度',unit_max:80,remote:'フルリモート',start:'2026/6',source:'Arcxia',date:''},
+  {id:9,name:'福祉事業所向け自社サービス開発',skills:['Ruby on Rails','TypeScript','AWS'],unit:'90万円',unit_max:90,remote:'フルリモート',start:'随時',source:'オルタナエクス',date:''},
+  {id:10,name:'ヘルスケアサービス新規開発',skills:['PHP','Laravel','TypeScript','React'],unit:'69万円',unit_max:69,remote:'基本リモート',start:'即日',source:'オルタナエクス',date:''},
+  {id:11,name:'AIエージェント開発エンジニア',skills:['Python','LLM','SaaS'],unit:'80万円',unit_max:80,remote:'ハイブリッド',start:'2026/5-7',source:'オルタナエクス',date:''},
+  {id:12,name:'鉄道開発保守向けJAVA設計',skills:['Java'],unit:'50万',unit_max:50,remote:'常駐',start:'即日',source:'モノックス',date:''}
 ];
-const SAMPLE_STAFF = [
-  {id:1,name:"TH（38歳）",skills:["PowerPlatform","生成AI","RAG","Java","PHP","Web開発","DX推進","ITコンサル","PMO"],unit_min:80,remote:true,start:"2026/7",location:"大阪府",source:"SKET"},
-  {id:2,name:"KS（29歳）",skills:["PHP","Laravel","Python","AI駆動開発","バックエンド","要件定義","React","Claude Code"],unit_min:70,remote:true,start:"即日",location:"東京都",source:"SKET"},
-  {id:3,name:"K.K（42歳）",skills:["TypeScript","React","Next.js","Vue.js","Go","Python","PHP","AWS","フルスタック","AI活用"],unit_min:90,remote:true,start:"2026/6",location:"大阪府",source:"リーバライズ"},
-  {id:4,name:"H.T（30歳）",skills:["TypeScript","PHP","Go","C#","Laravel","Vue.js","React","Node.js","AWS","Kubernetes"],unit_min:70,remote:false,start:"2026/5",location:"神奈川県",source:"リーバライズ"},
-  {id:5,name:"S.I（38歳）",skills:["iOS","Swift","PM","PdM","AI前提開発","スクラム","ClaudeCode","Figma"],unit_min:150,remote:true,start:"2026/7",location:"東京都",source:"アリザータ"},
-  {id:6,name:"KD（38歳）",skills:["Java","PHP","TypeScript","React","Next.js","Go","Python","AWS","フルスタック"],unit_min:115,remote:true,start:"即日",location:"福岡県",source:"オーライン"},
-  {id:7,name:"SH（28歳・女）",skills:["React","Next.js","Vue.js","Go","Node.js","PHP","Laravel","AWS","TypeScript","DDD"],unit_min:75,remote:true,start:"即日",location:"",source:"ZINZAI"},
-  {id:8,name:"K.I（42歳）",skills:["Ruby on Rails","TypeScript","Go","Python","React","Vue.js","AWS","AI活用","フルスタック"],unit_min:90,remote:true,start:"2026/6",location:"東京都",source:"リーバライズ"},
-  {id:9,name:"D.K（30歳）",skills:["Java","SpringBoot","TypeScript","React","Next.js","Go","COBOL","AI駆動開発","フルスタック"],unit_min:90,remote:true,start:"2026/6",location:"福岡県",source:"リーバライズ"},
-  {id:10,name:"Y.I（61歳）",skills:["Java","SpringBoot","Python","TypeScript","Vue.js","React","AWS","PM","PMO","アーキテクト"],unit_min:110,remote:true,start:"即日",location:"東京都",source:"senren"},
-  {id:11,name:"I.Y（41歳）",skills:["PHP","Laravel","Java","TypeScript","Vue.js","Node.js","Python","AWS","Salesforce","フルスタック"],unit_min:80,remote:true,start:"即日",location:"神奈川県",source:"senren"},
-  {id:12,name:"S.Y（22歳）",skills:["Ruby on Rails","React","Next.js","TypeScript","AWS","CI/CD","ClaudeCode"],unit_min:65,remote:true,start:"2026/6",location:"千葉県",source:"ポケットツール"},
-  {id:13,name:"NF（30歳）",skills:["Java","SpringBoot","C#","SQL","HTML","CSS","Linux"],unit_min:60,remote:false,start:"2026/6",location:"神奈川県",source:"ジェネトラ"},
-  {id:14,name:"TF（30歳）",skills:["Java","要件定義","上流工程","設計"],unit_min:75,remote:true,start:"即日",location:"東京都",source:"HAPIAS"},
-  {id:15,name:"Y.H（41歳）",skills:["Java","Spring","Oracle","PostgreSQL","SQL Server","官公庁系"],unit_min:80,remote:false,start:"2026/7",location:"埼玉県",source:"senren"},
-  {id:16,name:"Y.T（30歳）",skills:["JavaScript","TypeScript","React","Next.js","Java","PHP","MySQL","GitHub"],unit_min:70,remote:true,start:"2026/7",location:"岩手県",source:"senren"},
-  {id:17,name:"T.I（31歳）",skills:["COBOL","Java","DB2","Oracle","JP1","金融系","保険系"],unit_min:75,remote:false,start:"2026/7",location:"神奈川県",source:"senren"},
-  {id:18,name:"U.C（36歳・女）",skills:["SAP","ERP","FI","CO","AIシステム","ITコンサル","要件定義"],unit_min:80,remote:true,start:"要相談",location:"東京都",source:"那須総建"},
-  {id:19,name:"N.E（26歳）",skills:["PHP","Laravel","AWS","PMO","WBS","ベンダー調整","進行管理"],unit_min:65,remote:true,start:"2026/7",location:"神奈川県",source:"iGrus"},
-  {id:20,name:"K.U（23歳・女）",skills:["PHP","Laravel","JavaScript","React","C#","MySQL","Git"],unit_min:50,remote:false,start:"2026/7",location:"千葉県",source:"iGrus"},
+var SAMPLE_S = [
+  {id:1,name:'TH（38歳）',skills:['PowerPlatform','生成AI','RAG','Java','PHP','DX推進','PMO'],unit_min:80,remote:true,start:'2026/7',location:'大阪府',source:'SKET',date:''},
+  {id:2,name:'KS（29歳）',skills:['PHP','Laravel','Python','AI駆動開発','React','Claude Code'],unit_min:70,remote:true,start:'即日',location:'東京都',source:'SKET',date:''},
+  {id:3,name:'K.K（42歳）',skills:['TypeScript','React','Next.js','Vue.js','Go','Python','AWS','フルスタック'],unit_min:90,remote:true,start:'2026/6',location:'大阪府',source:'リーバライズ',date:''},
+  {id:4,name:'H.T（30歳）',skills:['TypeScript','PHP','Go','C#','Laravel','Vue.js','React','AWS'],unit_min:70,remote:false,start:'2026/5',location:'神奈川県',source:'リーバライズ',date:''},
+  {id:5,name:'SH（28歳・女）',skills:['React','Next.js','Vue.js','Go','Node.js','PHP','Laravel','AWS'],unit_min:75,remote:true,start:'即日',location:'',source:'ZINZAI',date:''},
+  {id:6,name:'K.I（42歳）',skills:['Ruby on Rails','TypeScript','Go','Python','React','Vue.js','AWS'],unit_min:90,remote:true,start:'2026/6',location:'東京都',source:'リーバライズ',date:''},
+  {id:7,name:'D.K（30歳）',skills:['Java','SpringBoot','TypeScript','React','Next.js','Go','AI駆動開発'],unit_min:90,remote:true,start:'2026/6',location:'福岡県',source:'リーバライズ',date:''},
+  {id:8,name:'Y.I（61歳）',skills:['Java','SpringBoot','Python','TypeScript','AWS','PM','PMO'],unit_min:110,remote:true,start:'即日',location:'東京都',source:'senren',date:''},
+  {id:9,name:'S.Y（22歳）',skills:['Ruby on Rails','React','Next.js','TypeScript','AWS','CI/CD'],unit_min:65,remote:true,start:'2026/6',location:'千葉県',source:'ポケットツール',date:''},
+  {id:10,name:'NF（30歳）',skills:['Java','SpringBoot','C#','SQL','Linux'],unit_min:60,remote:false,start:'2026/6',location:'神奈川県',source:'ジェネトラ',date:''},
+  {id:11,name:'TF（30歳）',skills:['Java','要件定義','上流工程'],unit_min:75,remote:true,start:'即日',location:'東京都',source:'HAPIAS',date:''},
+  {id:12,name:'U.C（36歳・女）',skills:['SAP','ERP','FI','CO','ITコンサル','要件定義'],unit_min:80,remote:true,start:'要相談',location:'東京都',source:'那須総建',date:''}
 ];
 
-let PROJECTS = [], STAFF = [];
-
-// ══════════════════════════════════════════════
-// データ読み込み
-// ══════════════════════════════════════════════
-async function loadData() {
-  document.getElementById('s-upd').textContent = '読込中';
-  if (GAS_URL) {
-    try {
-      const r = await fetch(GAS_URL + '?type=all');
-      const d = await r.json();
-      PROJECTS = (d.projects||[]).length ? d.projects : SAMPLE_PROJECTS;
-      STAFF    = (d.staff||[]).length    ? d.staff    : SAMPLE_STAFF;
-    } catch(e) {
-      PROJECTS = SAMPLE_PROJECTS;
-      STAFF    = SAMPLE_STAFF;
-    }
-  } else {
-    PROJECTS = SAMPLE_PROJECTS;
-    STAFF    = SAMPLE_STAFF;
-  }
-  updateStats();
-  renderStaffPList(STAFF);
-  renderProjPList(PROJECTS);
-  renderProjGrid(PROJECTS);
-  renderStaffGrid(STAFF);
-}
-
-function updateStats() {
-  document.getElementById('s-proj').textContent = PROJECTS.length;
-  document.getElementById('s-stf').textContent  = STAFF.length;
-  const now = new Date();
-  document.getElementById('s-upd').textContent  = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
-}
-
-// ══════════════════════════════════════════════
-// マッチングロジック
-// ══════════════════════════════════════════════
-function calcScore(staff, proj) {
-  const hit = [], miss = [];
-  for (const ps of (proj.skills||[])) {
-    const pl = ps.toLowerCase();
-    const ok = (staff.skills||[]).some(ss => ss.toLowerCase().includes(pl) || pl.includes(ss.toLowerCase()));
-    (ok ? hit : miss).push(ps);
-  }
-  const skillPts = (proj.skills||[]).length ? Math.round(hit.length / proj.skills.length * 60) : 0;
-  const diff     = (proj.unit_max||70) - (staff.unit_min||60);
-  const unitPts  = diff >= 0 ? 25 : diff >= -10 ? 15 : diff >= -20 ? 5 : 0;
-  const rm       = proj.remote || '';
-  const isRm     = /リモート|在宅|テレワーク/.test(rm);
-  const workPts  = (staff.remote && isRm) || (!staff.remote && /常駐/.test(rm)) ? 15
-                 : (staff.remote && /常駐/.test(rm)) || (!staff.remote && isRm)  ? 5 : 10;
-  return { total: skillPts + unitPts + workPts, skillPts, unitPts, workPts, hit, miss };
-}
-
-// ══════════════════════════════════════════════
-// タブ
-// ══════════════════════════════════════════════
-function tab(name, el) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-  document.querySelectorAll('.sec').forEach(s => s.classList.remove('on'));
-  el.classList.add('on');
-  document.getElementById('tab-'+name).classList.add('on');
-}
-
-// ══════════════════════════════════════════════
-// マッチング（要員→案件）
-// ══════════════════════════════════════════════
-function renderStaffPList(list) {
-  document.getElementById('staff-plist').innerHTML = list.length
-    ? list.map(s => `<div class="pli" onclick="pickStaff(${s.id})" id="sli-${s.id}"><div class="pli-name">${s.name}</div><div class="pli-sub">${(s.skills||[]).slice(0,3).join(' · ')}${(s.skills||[]).length>3?` +${s.skills.length-3}`:''}｜${s.unit_min}万〜</div></div>`).join('')
-    : '<div class="empty">データなし</div>';
-}
-function filterStaffList(q) {
-  const f = q.toLowerCase();
-  renderStaffPList(STAFF.filter(s => s.name?.toLowerCase().includes(f) || (s.skills||[]).some(sk => sk.toLowerCase().includes(f))));
-}
-function pickStaff(id) {
-  document.querySelectorAll('[id^="sli-"]').forEach(e => e.classList.remove('on'));
-  const el = document.getElementById('sli-'+id); if (el) el.classList.add('on');
-  const s = STAFF.find(x => x.id === id); if (!s) return;
-  const results = PROJECTS.map(p => ({ p, ...calcScore(s, p) })).sort((a,b) => b.total-a.total).slice(0, 8);
-  document.getElementById('match-result').innerHTML = `
-    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:14px;font-weight:700">${s.name}</span>
-      <span class="badge bg-grn">${s.unit_min}万〜</span>
-      <span class="badge bg-pur">${s.remote?'リモート希望':'常駐可'}</span>
-      <span class="badge" style="background:#F7F8FA;color:#6B7280">${s.start}〜</span>
-    </div>
-    <div style="font-size:11px;color:#6B7280;margin-bottom:12px">スキル: ${(s.skills||[]).join(' · ')}</div>
-    <div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">マッチング結果（上位8件）</div>
-    <div class="sc-list">${results.map((r,i) => scCard(r,i,s.id,r.p.id,true)).join('')}</div>`;
-}
-
-// ══════════════════════════════════════════════
-// 逆引き（案件→要員）
-// ══════════════════════════════════════════════
-function renderProjPList(list) {
-  document.getElementById('proj-plist').innerHTML = list.length
-    ? list.map(p => `<div class="pli" onclick="pickProj(${p.id})" id="pli-${p.id}"><div class="pli-name">${p.name}</div><div class="pli-sub">${(p.skills||[]).slice(0,2).join(' · ')}｜${p.unit}</div></div>`).join('')
-    : '<div class="empty">データなし</div>';
-}
-function filterProjList(q) {
-  const f = q.toLowerCase();
-  renderProjPList(PROJECTS.filter(p => p.name?.toLowerCase().includes(f) || (p.skills||[]).some(s => s.toLowerCase().includes(f))));
-}
-function pickProj(id) {
-  document.querySelectorAll('[id^="pli-"]').forEach(e => e.classList.remove('on'));
-  const el = document.getElementById('pli-'+id); if (el) el.classList.add('on');
-  const p = PROJECTS.find(x => x.id === id); if (!p) return;
-  const results = STAFF.map(s => ({ s, ...calcScore(s, p) })).sort((a,b) => b.total-a.total).slice(0, 8);
-  document.getElementById('rev-result').innerHTML = `
-    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:14px;font-weight:700">${p.name}</span>
-      <span class="badge bg-amb">${p.unit}</span>
-      <span class="badge bg-pur">${p.remote}</span>
-    </div>
-    <div style="font-size:11px;color:#6B7280;margin-bottom:12px">必須スキル: ${(p.skills||[]).join(' · ')}</div>
-    <div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">合う要員（上位8名）</div>
-    <div class="sc-list">${results.map((r,i) => scCard(r,i,r.s.id,p.id,false)).join('')}</div>`;
-}
-
-function scCard(r, i, staffId, projId, isMatch) {
-  const obj  = isMatch ? r.p : r.s;
-  const col  = r.total>=70?'#0F9D6E':r.total>=45?'#D97706':'#9CA3AF';
-  const rc   = i===0?'r1':i===1?'r2':i===2?'r3':'';
-  const meta = isMatch
-    ? `<span>単価: <strong>${obj.unit}</strong></span><span>勤務: <strong>${obj.remote}</strong></span><span>稼働: <strong>${obj.start}</strong></span><span>元: <strong>${obj.source}</strong></span>`
-    : `<span>単価: <strong>${obj.unit_min}万〜</strong></span><span>リモート: <strong>${obj.remote?'希望':'常駐可'}</strong></span><span>稼働: <strong>${obj.start}</strong></span><span>BP: <strong>${obj.source}</strong></span>`;
-  return `<div class="sc" style="cursor:pointer" onclick="openDetail(${staffId},${projId},${isMatch})">
-    <div class="sc-top">
-      <div class="sc-rank ${rc}">${i+1}</div>
-      <div class="sc-name">${obj.name}</div>
-      <div class="sc-score" style="color:${col}">${r.total}<span style="font-size:11px;font-weight:400">点</span></div>
-    </div>
-    <div class="bar-row"><span class="bar-lbl">スキル</span><div class="bar-out"><div class="bar-in" style="width:${r.skillPts/60*100}%;background:${col}"></div></div><span class="bar-val">${r.skillPts}/60</span></div>
-    <div class="bar-row"><span class="bar-lbl">単価</span><div class="bar-out"><div class="bar-in" style="width:${r.unitPts/25*100}%;background:${col}"></div></div><span class="bar-val">${r.unitPts}/25</span></div>
-    <div class="bar-row"><span class="bar-lbl">働き方</span><div class="bar-out"><div class="bar-in" style="width:${r.workPts/15*100}%;background:${col}"></div></div><span class="bar-val">${r.workPts}/15</span></div>
-    <div class="sc-tags">
-      ${r.hit.map(s=>`<span class="stag hit">✓ ${s}</span>`).join('')}
-      ${r.miss.map(s=>`<span class="stag miss">✗ ${s}</span>`).join('')}
-    </div>
-    <div class="sc-meta">${meta}</div>
-    <div class="sc-act" onclick="event.stopPropagation()">
-      <button class="btn btn-dk" onclick="openDetail(${staffId},${projId},${isMatch})">📄 詳細を見る</button>
-      <button class="btn btn-lt" onclick="copyMatchPrompt(${staffId},${projId})">📋 提案文をClaude.aiで作る</button>
-    </div>
-  </div>`;
-}
-
-// ══════════════════════════════════════════════
-// 詳細モーダル
-// ══════════════════════════════════════════════
-function openDetail(staffId, projId, isMatch) {
-  const s  = STAFF.find(x=>x.id===staffId);
-  const p  = PROJECTS.find(x=>x.id===projId);
-  if (!s||!p) return;
-  const sc = calcScore(s, p);
-  const col = sc.total>=70?'#0F9D6E':sc.total>=45?'#D97706':'#9CA3AF';
-
-  document.getElementById('detail-modal-ttl').textContent =
-    isMatch ? `${s.name} → ${p.name}` : `${p.name} ← ${s.name}`;
-
-  const promptText = `以下のSES要員を案件に提案するメール文（件名含む）を作成してください。
-
-【要員情報】
-名前: ${s.name}
-スキル: ${(s.skills||[]).join('、')}
-希望単価: ${s.unit_min}万〜
-稼働開始: ${s.start}
-リモート: ${s.remote?'フルリモート希望':'常駐可'}
-所在地: ${s.location||'不明'}
-所属BP: ${s.source}
-
-【案件情報】
-案件名: ${p.name}
-必須スキル: ${(p.skills||[]).join('、')}
-単価: ${p.unit}
-勤務形態: ${p.remote}
-稼働開始: ${p.start}
-情報元: ${p.source}
-
-【マッチング結果】
-総合スコア: ${sc.total}点/100点
-一致スキル: ${sc.hit.join('、')||'なし'}
-不足スキル: ${sc.miss.join('、')||'なし'}
-
-送信元：株式会社SKET営業担当として自然なメール文を作成してください。`;
-
-  document.getElementById('detail-modal-body').innerHTML = `
-    <!-- スコアサマリー -->
-    <div class="score-summary">
-      <div class="score-block">
-        <div class="score-block-val" style="color:${col}">${sc.total}</div>
-        <div class="score-block-lbl">総合スコア/100</div>
-      </div>
-      <div class="score-block">
-        <div class="score-block-val" style="color:#0F9D6E">${sc.skillPts}</div>
-        <div class="score-block-lbl">スキル/60</div>
-      </div>
-      <div class="score-block">
-        <div class="score-block-val" style="color:#2563EB">${sc.unitPts}</div>
-        <div class="score-block-lbl">単価/25</div>
-      </div>
-      <div class="score-block">
-        <div class="score-block-val" style="color:#7C3AED">${sc.workPts}</div>
-        <div class="score-block-lbl">働き方/15</div>
-      </div>
-    </div>
-
-    <!-- 要員情報 -->
-    <div class="detail-section">
-      <div class="detail-section-title">👤 要員情報</div>
-      <div class="detail-row"><span class="detail-label">氏名</span><span class="detail-value">${s.name}</span></div>
-      <div class="detail-row"><span class="detail-label">所在地</span><span class="detail-value">${s.location||'不明'}</span></div>
-      <div class="detail-row"><span class="detail-label">希望単価</span><span class="detail-value">${s.unit_min}万〜</span></div>
-      <div class="detail-row"><span class="detail-label">稼働開始</span><span class="detail-value">${s.start}</span></div>
-      <div class="detail-row"><span class="detail-label">リモート</span><span class="detail-value">${s.remote?'フルリモート希望':'常駐可'}</span></div>
-      <div class="detail-row"><span class="detail-label">所属BP</span><span class="detail-value">${s.source}</span></div>
-      <div class="detail-row"><span class="detail-label">スキル</span></div>
-      <div class="detail-tags">${(s.skills||[]).map(sk=>`<span class="detail-tag neutral">${sk}</span>`).join('')}</div>
-    </div>
-
-    <!-- 案件情報 -->
-    <div class="detail-section">
-      <div class="detail-section-title">📋 案件情報</div>
-      <div class="detail-row"><span class="detail-label">案件名</span><span class="detail-value">${p.name}</span></div>
-      <div class="detail-row"><span class="detail-label">単価</span><span class="detail-value">${p.unit}</span></div>
-      <div class="detail-row"><span class="detail-label">稼働開始</span><span class="detail-value">${p.start}</span></div>
-      <div class="detail-row"><span class="detail-label">勤務形態</span><span class="detail-value">${p.remote}</span></div>
-      <div class="detail-row"><span class="detail-label">情報元</span><span class="detail-value">${p.source}</span></div>
-      <div class="detail-row"><span class="detail-label">必須スキル</span></div>
-      <div class="detail-tags">
-        ${(p.skills||[]).map(sk=>`<span class="detail-tag ${sc.hit.includes(sk)?'hit':'miss'}">${sc.hit.includes(sk)?'✓':'✗'} ${sk}</span>`).join('')}
-      </div>
-    </div>
-
-    <!-- 提案文をClaudeで作るボタン -->
-    <div class="detail-section">
-      <div class="detail-section-title">✉ 提案文を作成する</div>
-      <div style="font-size:11px;color:#6B7280;margin-bottom:6px;line-height:1.6">
-        下のボタンを押すとプロンプトをコピーできます。<br>
-        Claude.ai（このチャット）に貼り付けるだけで提案文を作れます。
-      </div>
-      <button class="copy-prompt-btn" onclick="copyPromptText(\`${promptText.replace(/`/g,'\`')}\`)">
-        📋 提案文プロンプトをコピー（Claude.aiに貼り付けてください）<br>
-        <span style="font-size:10px;margin-top:2px;display:block">要員: ${s.name}　×　案件: ${p.name}</span>
-      </button>
-    </div>
-  `;
-  window._currentPrompt = promptText;
-  document.getElementById('detail-modal').classList.add('show');
-}
-
-function closeDetailModal() { document.getElementById('detail-modal').classList.remove('show'); }
-
-function copyStoredPrompt() {
-  if (!window._currentPrompt) return;
-  navigator.clipboard.writeText(window._currentPrompt).then(() => {
-    alert('コピーしました！\nClaude.ai（このチャット画面）に貼り付けてください。');
-  });
-}
-
-function copyPromptText(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    alert('コピーしました！\nClaude.ai（このチャット画面）に貼り付けてください。');
-  });
-}
-
-function copyMatchPrompt(staffId, projId) {
-  event.stopPropagation();
-  openDetail(staffId, projId, true);
-}
-
-// ══════════════════════════════════════════════
-// 一覧
-// ══════════════════════════════════════════════
-function filterArr(arr, q) {
-  const f = q.toLowerCase();
-  return arr.filter(x => x.name?.toLowerCase().includes(f) || (x.skills||[]).some(s=>s.toLowerCase().includes(f)));
-}
-function renderProjGrid(list) {
-  document.getElementById('proj-grid').innerHTML = list.map(p=>`
-    <div class="card"><div class="card-top"><div class="card-name">${p.name}</div><span class="badge bg-amb">${p.unit}</span></div>
-    <div class="tags">${(p.skills||[]).map(s=>`<span class="tag">${s}</span>`).join('')}</div>
-    <div class="meta-row"><div class="meta">勤務: <strong>${p.remote}</strong></div><div class="meta">稼働: <strong>${p.start}</strong></div><div class="meta">元: <strong>${p.source}</strong></div></div></div>`).join('');
-}
-function filterProjRemote(v) {
-  renderProjGrid(v ? PROJECTS.filter(p=>v==='リモート'?/リモート|テレワーク/.test(p.remote):/常駐/.test(p.remote)) : PROJECTS);
-}
-function renderStaffGrid(list) {
-  document.getElementById('staff-grid').innerHTML = list.map(s=>`
-    <div class="card"><div class="card-top"><div class="card-name">${s.name}${s.location?` (${s.location})`:''}</div><span class="badge bg-grn">${s.unit_min}万〜</span></div>
-    <div class="tags">${(s.skills||[]).map(sk=>`<span class="tag">${sk}</span>`).join('')}</div>
-    <div class="meta-row"><div class="meta">リモート: <strong>${s.remote?'希望':'常駐可'}</strong></div><div class="meta">稼働: <strong>${s.start}</strong></div><div class="meta">BP: <strong>${s.source}</strong></div></div></div>`).join('');
-}
-
-// ══════════════════════════════════════════════
-// 情報追加（AI解析 → ツール＋スプレッドシートに保存）
-// ══════════════════════════════════════════════
-async function parseAdd(type) {
-  const isP  = type === 'project';
-  const text = document.getElementById(isP ? 'proj-ta' : 'stf-ta').value.trim();
-  const rs   = document.getElementById(isP ? 'proj-parse' : 'stf-parse');
-  if (!text) { alert('テキストを貼り付けてください'); return; }
-  rs.className = 'parse-result show';
-  rs.textContent = '⏳ AIが解析中...';
-
-  const prompt = isP
-    ? `以下のSES案件情報からJSONのみを出力してください（説明不要）。
-形式: {"name":"案件名","skills":["スキル1"],"unit":"単価文字列","unit_max":数値万円,"remote":"フルリモートまたはリモート可またはハイブリッドまたは常駐","start":"稼働開始","source":"情報元"}
-unit_maxは数値のみ。不明なら70。\n\n${text}`
-    : `以下のSESエンジニア要員情報からJSONのみを出力してください（説明不要）。
-形式: {"name":"名前(年齢)","skills":["スキル1"],"unit_min":数値万円,"remote":true,"start":"稼働開始","location":"都道府県","source":"所属企業"}
-unit_minは数値のみ。不明なら60。remoteはフルリモート/リモート希望ならtrue。\n\n${text}`;
-
-  try {
-    const raw  = await callClaude(prompt);
-    const json = JSON.parse(raw.replace(/```json|```/g,'').trim());
-    const newId = Math.max(0, ...(isP ? PROJECTS : STAFF).map(x=>x.id)) + 1;
-    json.id = newId;
-
-    // ツール内DBに追加
-    if (isP) { PROJECTS.push(json); renderProjGrid(PROJECTS); renderProjPList(PROJECTS); }
-    else     { STAFF.push(json);    renderStaffGrid(STAFF);   renderStaffPList(STAFF); }
+function loadData() {
+  document.getElementById('su').textContent = '読込中';
+  var done = function() {
     updateStats();
+    renderSL(STAFF); renderPL(PROJECTS); renderPG(PROJECTS); renderSG(STAFF);
+  };
+  if (GAS_URL) {
+    fetch(GAS_URL + '?type=all').then(function(r) { return r.json(); }).then(function(d) {
+      PROJECTS = (d.projects && d.projects.length) ? d.projects : SAMPLE_P;
+      STAFF    = (d.staff    && d.staff.length)    ? d.staff    : SAMPLE_S;
+      done();
+    }).catch(function() { PROJECTS = SAMPLE_P; STAFF = SAMPLE_S; done(); });
+  } else { PROJECTS = SAMPLE_P; STAFF = SAMPLE_S; done(); }
+}
+function updateStats() {
+  document.getElementById('sp').textContent = PROJECTS.length;
+  document.getElementById('ss').textContent = STAFF.length;
+  var n = new Date();
+  document.getElementById('su').textContent = n.getHours() + ':' + String(n.getMinutes()).padStart(2,'0');
+}
 
-    // GASが設定済みならスプレッドシートにも保存
-    if (GAS_URL) {
-      try {
-        await fetch(GAS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({ type, record: json })
-        });
-        rs.textContent = `✅ ツールとスプレッドシートの両方に追加しました！\n\n${JSON.stringify(json,null,2)}`;
-      } catch {
-        rs.textContent = `✅ ツールに追加しました（スプレッドシートへの保存は失敗しました）\n\n${JSON.stringify(json,null,2)}`;
+function calcScore(s, p) {
+  var hit = [], miss = [];
+  (p.skills || []).forEach(function(ps) {
+    var pl = ps.toLowerCase();
+    var ok = (s.skills || []).some(function(ss) { return ss.toLowerCase().indexOf(pl) >= 0 || pl.indexOf(ss.toLowerCase()) >= 0; });
+    if (ok) hit.push(ps); else miss.push(ps);
+  });
+  var skillPts = (p.skills && p.skills.length) ? Math.round(hit.length / p.skills.length * 60) : 0;
+  var diff = (p.unit_max || 70) - (s.unit_min || 60);
+  var unitPts = diff >= 0 ? 25 : diff >= -10 ? 15 : diff >= -20 ? 5 : 0;
+  var rm = p.remote || '';
+  var isRm = /リモート|在宅|テレワーク/.test(rm);
+  var workPts = (s.remote && isRm) || (!s.remote && /常駐/.test(rm)) ? 15 : 10;
+  return {total: skillPts+unitPts+workPts, skillPts:skillPts, unitPts:unitPts, workPts:workPts, hit:hit, miss:miss};
+}
+
+function doTab(el) { var name = el.getAttribute("data-tab");
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('on'); });
+  document.querySelectorAll('.sec').forEach(function(s2) { s2.classList.remove('on'); });
+  el.classList.add('on');
+  document.getElementById('tab-' + name).classList.add('on');
+}
+
+function mkCard(r, i, sId, pId, isMatch) {
+  var obj  = isMatch ? r.p : r.s;
+  var col  = r.total >= 70 ? '#0F9D6E' : r.total >= 45 ? '#D97706' : '#9CA3AF';
+  var rc   = i===0?'r1':i===1?'r2':i===2?'r3':'';
+  var fr   = getFresh(isMatch ? (r.p.date||'') : (r.s.date||''));
+  var st   = getSt(isMatch ? 'project' : 'staff', obj.id);
+  var stType = isMatch ? 'project' : 'staff';
+  var htags = r.hit.map(function(sk) { return '<span class="stag hit">v ' + sk + '</span>'; }).join('');
+  var mtags = r.miss.map(function(sk) { return '<span class="stag miss">x ' + sk + '</span>'; }).join('');
+  var meta = isMatch
+    ? '<span>単価: <strong>' + obj.unit + '</strong></span><span>勤務: <strong>' + obj.remote + '</strong></span><span>稼働: <strong>' + obj.start + '</strong></span><span>元: <strong>' + obj.source + '</strong></span>'
+    : '<span>単価: <strong>' + obj.unit_min + '万〜</strong></span><span>リモート: <strong>' + (obj.remote?'希望':'常駐可') + '</strong></span><span>稼働: <strong>' + obj.start + '</strong></span><span>BP: <strong>' + obj.source + '</strong></span>';
+  var h = '<div class="sc" style="' + (st==='closed'?'opacity:0.4':'') + '" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">';
+  h += '<div class="sc-top"><div class="sc-rank ' + rc + '">' + (i+1) + '</div><div class="sc-name">' + obj.name + '</div>';
+  h += '<div class="sc-score" style="color:' + col + '">' + r.total + '<span style="font-size:11px;font-weight:400">点</span></div></div>';
+  h += '<div class="brow"><span class="blbl">スキル</span><div class="bout"><div class="bin" style="width:' + (r.skillPts/60*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.skillPts + '/60</span></div>';
+  h += '<div class="brow"><span class="blbl">単価</span><div class="bout"><div class="bin" style="width:' + (r.unitPts/25*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.unitPts + '/25</span></div>';
+  h += '<div class="brow"><span class="blbl">働き方</span><div class="bout"><div class="bin" style="width:' + (r.workPts/15*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.workPts + '/15</span></div>';
+  h += '<div class="sc-tags">' + htags + mtags + '</div>';
+  h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
+  h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
+  h += '<button class="stbtn ' + stCls2(st) + '" data-type="' + stType + '" data-id="' + obj.id + '" onclick="event.stopPropagation();cycleStBtn(this)">' + stLbl(st) + '</button></div>';
+  h += '<div class="sc-meta">' + meta + '</div>';
+  h += '<div class="sc-act" onclick="event.stopPropagation()"><button class="btn btn-d" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">詳細を見る</button></div>';
+  h += '</div>';
+  return h;
+}
+
+function cycleStBtn(btn) {
+  var type = btn.getAttribute("data-type");
+  var id   = parseInt(btn.getAttribute("data-id"));
+  cycleSt2(type, id, btn);
+}
+function cycleSt2(type, id, btn) {
+  var cur = getSt(type, id);
+  var next = cur === 'active' ? 'proposing' : cur === 'proposing' ? 'closed' : 'active';
+  setSt(type, id, next);
+  btn.textContent = stLbl(next);
+  btn.className = 'stbtn ' + stCls2(next);
+}
+
+function renderSL(list) {
+  var h = list.length ? list.map(function(s) {
+    return '<div class="pli" onclick="pickS(' + s.id + ')" id="sli-' + s.id + '"><div class="pli-n">' + s.name + '</div><div class="pli-s">' + (s.skills||[]).slice(0,3).join(' . ') + (s.skills.length>3?' +'+( s.skills.length-3):'') + ' | ' + s.unit_min + '万〜</div></div>';
+  }).join('') : '<div class="empty">データなし</div>';
+  document.getElementById('slst').innerHTML = h;
+}
+function filterSL(q) {
+  var f = q.toLowerCase();
+  renderSL(STAFF.filter(function(s) { return s.name.toLowerCase().indexOf(f)>=0 || (s.skills||[]).some(function(sk) { return sk.toLowerCase().indexOf(f)>=0; }); }));
+}
+function pickS(id) {
+  document.querySelectorAll('[id^="sli-"]').forEach(function(e) { e.classList.remove('on'); });
+  var el = document.getElementById('sli-' + id); if (el) el.classList.add('on');
+  var s = STAFF.find(function(x) { return x.id === id; }); if (!s) return;
+  var res = PROJECTS.map(function(p) {
+    var sc = calcScore(s, p);
+    return {p:p, s:s, total:sc.total, skillPts:sc.skillPts, unitPts:sc.unitPts, workPts:sc.workPts, hit:sc.hit, miss:sc.miss};
+  }).sort(function(a,b) { return b.total-a.total; }).slice(0,8);
+  var h = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  h += '<span style="font-size:14px;font-weight:700">' + s.name + '</span>';
+  h += '<span class="badge bg-g">' + s.unit_min + '万〜</span>';
+  h += '<span class="badge bg-p">' + (s.remote?'リモート希望':'常駐可') + '</span></div>';
+  h += '<div style="font-size:11px;color:#6B7280;margin-bottom:12px">スキル: ' + (s.skills||[]).join(' . ') + '</div>';
+  h += '<div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:10px">マッチング結果（上位8件）</div>';
+  h += '<div class="sc-list">' + res.map(function(r,i) { return mkCard(r,i,s.id,r.p.id,true); }).join('') + '</div>';
+  document.getElementById('mres').innerHTML = h;
+}
+
+function renderPL(list) {
+  var h = list.length ? list.map(function(p) {
+    return '<div class="pli" onclick="pickP(' + p.id + ')" id="pli-' + p.id + '"><div class="pli-n">' + p.name + '</div><div class="pli-s">' + (p.skills||[]).slice(0,2).join(' . ') + ' | ' + p.unit + '</div></div>';
+  }).join('') : '<div class="empty">データなし</div>';
+  document.getElementById('plst').innerHTML = h;
+}
+function filterPL(q) {
+  var f = q.toLowerCase();
+  renderPL(PROJECTS.filter(function(p) { return p.name.toLowerCase().indexOf(f)>=0 || (p.skills||[]).some(function(s) { return s.toLowerCase().indexOf(f)>=0; }); }));
+}
+function pickP(id) {
+  document.querySelectorAll('[id^="pli-"]').forEach(function(e) { e.classList.remove('on'); });
+  var el = document.getElementById('pli-' + id); if (el) el.classList.add('on');
+  var p = PROJECTS.find(function(x) { return x.id === id; }); if (!p) return;
+  var res = STAFF.map(function(s) {
+    var sc = calcScore(s, p);
+    return {p:p, s:s, total:sc.total, skillPts:sc.skillPts, unitPts:sc.unitPts, workPts:sc.workPts, hit:sc.hit, miss:sc.miss};
+  }).sort(function(a,b) { return b.total-a.total; }).slice(0,8);
+  var h = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  h += '<span style="font-size:14px;font-weight:700">' + p.name + '</span>';
+  h += '<span class="badge bg-a">' + p.unit + '</span>';
+  h += '<span class="badge bg-p">' + p.remote + '</span></div>';
+  h += '<div style="font-size:11px;color:#6B7280;margin-bottom:12px">必須スキル: ' + (p.skills||[]).join(' . ') + '</div>';
+  h += '<div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:10px">合う要員（上位8名）</div>';
+  h += '<div class="sc-list">' + res.map(function(r,i) { return mkCard(r,i,r.s.id,p.id,false); }).join('') + '</div>';
+  document.getElementById('rres').innerHTML = h;
+}
+
+function fArr(arr, q) {
+  var f = q.toLowerCase();
+  return arr.filter(function(x) { return x.name.toLowerCase().indexOf(f)>=0 || (x.skills||[]).some(function(s) { return s.toLowerCase().indexOf(f)>=0; }); });
+}
+function mkCardGrid(p) {
+  var fr = getFresh(p.date||''); var st = getSt('project',p.id);
+  var tags = (p.skills||[]).map(function(s) { return '<span class="tag">'+s+'</span>'; }).join('');
+  var h = '<div class="card" style="' + (st==='closed'?'opacity:0.4':'') + '">';
+  h += '<div class="ct"><div class="cn">' + p.name + '</div><span class="badge bg-a">' + p.unit + '</span></div>';
+  h += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
+  h += '<button class="stbtn ' + stCls2(st) + '" data-type="project" data-id="' + p.id + '" onclick="cycleStBtn(this)">' + stLbl(st) + '</button></div>';
+  h += '<div class="tags">' + tags + '</div>';
+  h += '<div class="mr"><div class="meta">勤務: <strong>' + p.remote + '</strong></div><div class="meta">稼働: <strong>' + p.start + '</strong></div><div class="meta">元: <strong>' + p.source + '</strong></div></div>';
+  h += '</div>';
+  return h;
+}
+function renderPG(list) { document.getElementById('pgrid').innerHTML = list.map(mkCardGrid).join(''); }
+function fPR(v) { renderPG(v ? PROJECTS.filter(function(p) { return v==='r' ? /リモート|テレワーク/.test(p.remote) : /常駐/.test(p.remote); }) : PROJECTS); }
+function fPS(v) { renderPG(v ? PROJECTS.filter(function(p) { return getSt('project',p.id)===v; }) : PROJECTS); }
+function fPF(v) {
+  renderPG(v ? PROJECTS.filter(function(p) {
+    var f = getFresh(p.date||'');
+    return v==='new'?f.days>=0&&f.days<=14:v==='warn'?f.days>14&&f.days<=30:f.days>30||f.days===-1;
+  }) : PROJECTS);
+}
+function mkStaffCard(s) {
+  var fr = getFresh(s.date||''); var st = getSt('staff',s.id);
+  var loc = s.location ? ' (' + s.location + ')' : '';
+  var tags = (s.skills||[]).map(function(sk) { return '<span class="tag">'+sk+'</span>'; }).join('');
+  var h = '<div class="card" style="' + (st==='closed'?'opacity:0.4':'') + '">';
+  h += '<div class="ct"><div class="cn">' + s.name + loc + '</div><span class="badge bg-g">' + s.unit_min + '万〜</span></div>';
+  h += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
+  h += '<button class="stbtn ' + stCls2(st) + '" data-type="staff" data-id="' + s.id + '" onclick="cycleStBtn(this)">' + stLbl(st) + '</button></div>';
+  h += '<div class="tags">' + tags + '</div>';
+  h += '<div class="mr"><div class="meta">リモート: <strong>' + (s.remote?'希望':'常駐可') + '</strong></div><div class="meta">稼働: <strong>' + s.start + '</strong></div><div class="meta">BP: <strong>' + s.source + '</strong></div></div>';
+  h += '</div>';
+  return h;
+}
+function renderSG(list) { document.getElementById('sgrid').innerHTML = list.map(mkStaffCard).join(''); }
+function fSS(v) { renderSG(v ? STAFF.filter(function(s) { return getSt('staff',s.id)===v; }) : STAFF); }
+function fSF(v) {
+  renderSG(v ? STAFF.filter(function(s) {
+    var f = getFresh(s.date||'');
+    return v==='new'?f.days>=0&&f.days<=14:v==='warn'?f.days>14&&f.days<=30:f.days>30||f.days===-1;
+  }) : STAFF);
+}
+
+function openDet(sId, pId, isMatch) {
+  var s = STAFF.find(function(x) { return x.id === sId; });
+  var p = PROJECTS.find(function(x) { return x.id === pId; });
+  if (!s || !p) return;
+  var sc = calcScore(s, p);
+  var col = sc.total>=70?'#0F9D6E':sc.total>=45?'#D97706':'#9CA3AF';
+  document.getElementById('detttl').textContent = s.name + ' x ' + p.name;
+
+  _curPrompt = 'SES要員を案件に提案するメール文（件名含む）を作成してください。\n\n'
+    + '【要員情報】\n名前: ' + s.name + '\nスキル: ' + (s.skills||[]).join('、')
+    + '\n希望単価: ' + s.unit_min + '万〜\n稼働開始: ' + s.start
+    + '\nリモート: ' + (s.remote?'フルリモート希望':'常駐可')
+    + '\n所在地: ' + (s.location||'不明') + '\n所属BP: ' + s.source
+    + '\n\n【案件情報】\n案件名: ' + p.name + '\n必須スキル: ' + (p.skills||[]).join('、')
+    + '\n単価: ' + p.unit + '\n勤務形態: ' + p.remote
+    + '\n稼働開始: ' + p.start + '\n情報元: ' + p.source
+    + '\n\n【マッチング結果】\n総合スコア: ' + sc.total + '点/100点'
+    + '\n一致スキル: ' + (sc.hit.join('、')||'なし')
+    + '\n不足スキル: ' + (sc.miss.join('、')||'なし')
+    + '\n\n送信元：株式会社SKET営業担当として自然なメール文を作成してください。';
+
+  var skillTags = (p.skills||[]).map(function(sk) {
+    var h2 = sc.hit.indexOf(sk) >= 0;
+    return '<span class="dtag ' + (h2?'hit':'miss') + '">' + (h2?'v':'x') + ' ' + sk + '</span>';
+  }).join('');
+  var sTags = (s.skills||[]).map(function(sk) { return '<span class="dtag neu">' + sk + '</span>'; }).join('');
+
+  var h = '<div class="ssum">';
+  h += '<div class="sblk"><div class="sblkv" style="color:'+col+'">' + sc.total + '</div><div class="sblkl">総合/100</div></div>';
+  h += '<div class="sblk"><div class="sblkv" style="color:#0F9D6E">' + sc.skillPts + '</div><div class="sblkl">スキル/60</div></div>';
+  h += '<div class="sblk"><div class="sblkv" style="color:#2563EB">' + sc.unitPts + '</div><div class="sblkl">単価/25</div></div>';
+  h += '<div class="sblk"><div class="sblkv" style="color:#7C3AED">' + sc.workPts + '</div><div class="sblkl">働き方/15</div></div>';
+  h += '</div>';
+  h += '<div class="dsec"><div class="dsh">要員情報</div>';
+  h += '<div class="drow"><span class="dlbl">氏名</span><span class="dval">' + s.name + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">所在地</span><span class="dval">' + (s.location||'不明') + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">希望単価</span><span class="dval">' + s.unit_min + '万〜</span></div>';
+  h += '<div class="drow"><span class="dlbl">稼働開始</span><span class="dval">' + s.start + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">リモート</span><span class="dval">' + (s.remote?'フルリモート希望':'常駐可') + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">所属BP</span><span class="dval">' + s.source + '</span></div>';
+  h += '<div class="dtags">' + sTags + '</div></div>';
+  h += '<div class="dsec"><div class="dsh">案件情報</div>';
+  h += '<div class="drow"><span class="dlbl">案件名</span><span class="dval">' + p.name + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">単価</span><span class="dval">' + p.unit + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">稼働開始</span><span class="dval">' + p.start + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">勤務形態</span><span class="dval">' + p.remote + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">情報元</span><span class="dval">' + p.source + '</span></div>';
+  h += '<div class="dtags">' + skillTags + '</div></div>';
+  h += '<div class="dsec"><div class="dsh">提案文を作成する</div>';
+  h += '<div style="font-size:11px;color:#6B7280;margin-bottom:6px;line-height:1.6">下のボタンを押してプロンプトをコピーし、Claude.ai（このチャット）に貼り付けてください。</div>';
+  h += '<button class="cpbtn" onclick="copyPrompt()">提案文プロンプトをコピーする（Claude.aiに貼り付けてください）';
+  h += '<br><span style="font-size:10px;margin-top:2px;display:block">要員: ' + s.name + '  x  案件: ' + p.name + '</span></button></div>';
+  document.getElementById('detbody').innerHTML = h;
+  document.getElementById('detmodal').classList.add('show');
+}
+function closeDetModal() { document.getElementById('detmodal').classList.remove('show'); }
+function copyPrompt() {
+  navigator.clipboard.writeText(_curPrompt).then(function() {
+    alert('コピーしました！\nClaude.ai（このチャット画面）に貼り付けてください。');
+  });
+}
+
+function hidePreview() { document.getElementById("allprev").style.display="none"; }
+function clearPaste() {
+  document.getElementById('allta').value = '';
+  document.getElementById('allpr').className = 'pr';
+  document.getElementById('allprev').style.display = 'none';
+}
+
+function parseAll() {
+  var text = document.getElementById('allta').value.trim();
+  var rs = document.getElementById('allpr');
+  var cnt = document.getElementById('allcnt');
+  if (!text) { alert('テキストを貼り付けてください'); return; }
+  rs.className = 'pr show'; rs.textContent = 'AIが解析・識別中...';
+  cnt.textContent = ''; document.getElementById('allprev').style.display = 'none';
+
+  var prompt = 'SES案件・要員情報のテキストからすべての情報を抽出してJSONで返してください（説明なし・JSONのみ）。\n\n'
+    + '{"projects":[{"name":"案件名","skills":["スキル"],"unit":"単価","unit_max":数値,"remote":"フルリモートまたはリモート可またはハイブリッドまたは常駐","start":"稼働開始","source":"情報元"}],'
+    + '"staff":[{"name":"名前(年齢)","skills":["スキル"],"unit_min":数値,"remote":true,"start":"稼働開始","location":"都道府県","source":"所属企業"}]}\n\n'
+    + '案件判断：案件名・必須スキル・単価・配信番号があれば案件。要員判断：氏名・スキル・希望単価があれば要員。unit_max不明なら70。unit_min不明なら60。remoteは常駐系ならfalse。\n\nテキスト:\n' + text;
+
+  callClaude(prompt).then(function(raw) {
+    var cleaned = raw; while(cleaned.indexOf('\x60\x60\x60') >= 0) { cleaned = cleaned.replace('\x60\x60\x60json','').replace('\x60\x60\x60',''); } cleaned = cleaned.trim(); var parsed = JSON.parse(cleaned);
+    _pendP = parsed.projects || [];
+    _pendS = parsed.staff    || [];
+    var total = _pendP.length + _pendS.length;
+    if (total === 0) { rs.textContent = '案件・要員情報が見つかりませんでした。'; return; }
+    rs.className = 'pr'; cnt.textContent = '案件' + _pendP.length + '件・要員' + _pendS.length + '名を検出';
+
+    var ph = '';
+    if (_pendP.length > 0) {
+      ph += '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#0F9D6E;margin-bottom:6px">案件 ' + _pendP.length + '件</div>';
+      for (var i = 0; i < _pendP.length; i++) {
+        var pp = _pendP[i]; var bc = pp.source ? '#E4E6EA' : '#DC2626';
+        var pt = (pp.skills||[]).map(function(sk) { return '<span style="font-size:10px;padding:2px 7px;background:#E8F7F2;color:#0F9D6E;border-radius:20px">' + sk + '</span>'; }).join('');
+        ph += '<div class="prev-item">';
+        ph += '<div style="font-size:12px;font-weight:600;margin-bottom:6px">' + (i+1) + '. ' + pp.name + '</div>';
+        ph += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + pp.unit + '</strong></span><span>勤務: <strong>' + pp.remote + '</strong></span><span>稼働: <strong>' + pp.start + '</strong></span></div>';
+        ph += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
+        ph += '<input type="text" id="pp' + i + '" value="' + (pp.source||'') + '" placeholder="例：フリースタイル" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc + ';border-radius:6px;font-size:12px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
+        ph += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + pt + '</div></div>';
       }
-    } else {
-      rs.textContent = `✅ ツールに追加しました！\n※スプレッドシートにも保存するには「⚙️ 設定」タブでGAS URLを設定してください\n\n${JSON.stringify(json,null,2)}`;
+      ph += '</div>';
     }
-    document.getElementById(isP ? 'proj-ta' : 'stf-ta').value = '';
-  } catch(e) {
-    rs.textContent = '⚠️ エラー: ' + e.message;
-  }
+
+    var sh = '';
+    if (_pendS.length > 0) {
+      sh += '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#7C3AED;margin-bottom:6px">要員 ' + _pendS.length + '名</div>';
+      for (var j = 0; j < _pendS.length; j++) {
+        var ps = _pendS[j]; var bc2 = ps.source ? '#E4E6EA' : '#DC2626';
+        var st2 = (ps.skills||[]).map(function(sk) { return '<span style="font-size:10px;padding:2px 7px;background:#F5F3FF;color:#7C3AED;border-radius:20px">' + sk + '</span>'; }).join('');
+        sh += '<div class="prev-item">';
+        sh += '<div style="font-size:12px;font-weight:600;margin-bottom:6px">' + (j+1) + '. ' + ps.name + '</div>';
+        sh += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + ps.unit_min + '万〜</strong></span><span>リモート: <strong>' + (ps.remote?'希望':'常駐可') + '</strong></span><span>稼働: <strong>' + ps.start + '</strong></span></div>';
+        sh += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
+        sh += '<input type="text" id="ps' + j + '" value="' + (ps.source||'') + '" placeholder="例：ZINZAI" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc2 + ';border-radius:6px;font-size:12px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
+        sh += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + st2 + '</div></div>';
+      }
+      sh += '</div>';
+    }
+
+    document.getElementById('prevp').innerHTML = ph;
+    document.getElementById('prevs').innerHTML = sh;
+    document.getElementById('allprev').style.display = 'block';
+  }).catch(function(e) { rs.textContent = 'エラー: ' + e.message; });
 }
 
-// ══════════════════════════════════════════════
-// 提案文生成
-// ══════════════════════════════════════════════
-async function genProposal(staffId, projId) {
-  const s = STAFF.find(x=>x.id===staffId);
-  const p = PROJECTS.find(x=>x.id===projId);
-  if (!s||!p) return;
-  const sc = calcScore(s, p);
-  document.getElementById('modal-ttl').textContent = `${s.name} × ${p.name}`;
-  document.getElementById('modal-body').innerHTML = '<div style="text-align:center;padding:20px;color:#6B7280"><span class="spin"></span>AIが提案文を生成中...</div>';
-  document.getElementById('modal').classList.add('show');
-  try {
-    const text = await callClaude(`SES営業として、以下の要員をBP企業に提案するメール文（件名含む）を作成してください。
-
-【提案要員】
-名前: ${s.name} / スキル: ${(s.skills||[]).join('、')} / 希望単価: ${s.unit_min}万〜
-稼働: ${s.start} / リモート: ${s.remote?'フルリモート希望':'常駐可'} / 所在: ${s.location||'不明'}
-
-【提案案件】
-案件名: ${p.name} / 必須スキル: ${(p.skills||[]).join('、')}
-単価: ${p.unit} / 勤務: ${p.remote} / 稼働: ${p.start} / 情報元: ${p.source}
-
-マッチスキル: ${sc.hit.join('、')||'なし'} / スコア: ${sc.total}点
-
-送信元：株式会社SKET営業担当として、自然で簡潔なメール文を作成してください。`);
-    document.getElementById('modal-body').innerHTML = `<div class="proposal">${text}</div>`;
-  } catch(e) {
-    document.getElementById('modal-body').innerHTML = `<div class="proposal" style="color:#DC2626">${e.message}</div>`;
+function confirmAdd() {
+  var hasErr = false;
+  for (var i = 0; i < _pendP.length; i++) {
+    var el = document.getElementById('pp' + i);
+    if (el) { var v = el.value.trim(); if (!v) { el.style.borderColor='#DC2626'; hasErr=true; } else { _pendP[i].source=v; } }
   }
-}
+  for (var j = 0; j < _pendS.length; j++) {
+    var el2 = document.getElementById('ps' + j);
+    if (el2) { var v2 = el2.value.trim(); if (!v2) { el2.style.borderColor='#DC2626'; hasErr=true; } else { _pendS[j].source=v2; } }
+  }
+  if (hasErr) { alert('BP名が未入力の項目があります。赤枠の欄を入力してください。'); return; }
 
-function closeModal()   { document.getElementById('modal').classList.remove('show'); }
-function copyProposal() { navigator.clipboard.writeText(document.getElementById('modal-body').innerText).then(()=>alert('コピーしました！')); }
+  document.getElementById('allprev').style.display = 'none';
+  var rs = document.getElementById('allpr'); rs.className = 'pr show'; rs.textContent = 'DBに追加中...';
+  var today = new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit'});
+  var addP=0, addS=0, savP=0, savS=0;
+
+  var doSave = function(type, item, cb) {
+    if (GAS_URL) {
+      fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({type:type,record:item})})
+        .then(function() { cb(true); }).catch(function() { cb(false); });
+    } else { cb(false); }
+  };
+
+  var pi = 0;
+  function addNextP() {
+    if (pi >= _pendP.length) { addNextS(0); return; }
+    var item = _pendP[pi];
+    item.id = Math.max.apply(null, [0].concat(PROJECTS.map(function(x){return x.id;}))) + 1;
+    item.date = today; PROJECTS.push(item); addP++; pi++;
+    doSave('project', item, function(ok) { if(ok) savP++; addNextP(); });
+  }
+  function addNextS(si) {
+    if (si >= _pendS.length) { done(); return; }
+    var item = _pendS[si];
+    item.id = Math.max.apply(null, [0].concat(STAFF.map(function(x){return x.id;}))) + 1;
+    item.date = today; STAFF.push(item); addS++; si++;
+    doSave('staff', item, function(ok) { if(ok) savS++; addNextS(si); });
+  }
+  function done() {
+    renderPG(PROJECTS); renderPL(PROJECTS); renderSG(STAFF); renderSL(STAFF); updateStats();
+    var msg = GAS_URL ? 'スプレッドシートにも保存しました（案件'+savP+'件・要員'+savS+'名）' : 'スプレッドシートへの保存は設定タブでGAS URLを設定後に有効になります';
+    rs.textContent = '追加完了！案件'+addP+'件・要員'+addS+'名をDBに追加しました\n' + msg;
+    document.getElementById('allta').value = ''; _pendP = []; _pendS = [];
+  }
+  addNextP();
+}
 
 loadData();
 </script>
