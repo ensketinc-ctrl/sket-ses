@@ -6,115 +6,115 @@
 <title>SKET マッチングツール</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A1D23;font-size:13px}
+body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A1D23;font-size:14px;line-height:1.5}
 .hdr{background:#1A1D23;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
-.hdr-title{font-size:15px;font-weight:700}.hdr-sub{font-size:11px;color:#9CA3AF}
+.hdr-title{font-size:16px;font-weight:700}.hdr-sub{font-size:12px;color:#9CA3AF}
 .hdr-stats{margin-left:auto;display:flex;gap:16px}
-.sv{font-size:16px;font-weight:700;text-align:right}.sl{font-size:10px;color:#9CA3AF;text-align:right}
-.hbtn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer}
+.sv{font-size:17px;font-weight:700;text-align:right}.sl{font-size:11px;color:#9CA3AF;text-align:right}
+.hbtn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer}
 .tabs{display:flex;background:#fff;border-bottom:1px solid #E4E6EA;padding:0 12px;overflow-x:auto;position:sticky;top:46px;z-index:40}
-.tab{padding:10px 14px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:none;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab{padding:10px 14px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tab.on{color:#1A1D23;border-color:#1A1D23;font-weight:600}
 .sec{display:none}.sec.on{display:block}
 .two-pane{display:flex;min-height:calc(100vh - 120px)}
 .lpane{width:260px;flex-shrink:0;border-right:1px solid #E4E6EA;background:#fff}
 .rpane{flex:1;padding:14px;background:#F7F8FA}
-.ph{padding:10px 14px;border-bottom:1px solid #E4E6EA;font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px}
+.ph{padding:10px 14px;border-bottom:1px solid #E4E6EA;font-size:12px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px}
 .ps{padding:8px;border-bottom:1px solid #E4E6EA}
 .pli{padding:10px 14px;border-bottom:1px solid #E4E6EA;cursor:pointer}
 .pli:hover{background:#F7F8FA}.pli.on{background:#EFF6FF;border-left:3px solid #2563EB}
-.pli-n{font-size:12px;font-weight:500;margin-bottom:2px;line-height:1.3}
-.pli-s{font-size:11px;color:#6B7280}
+.pli-n{font-size:13px;font-weight:500;margin-bottom:2px;line-height:1.3}
+.pli-s{font-size:12px;color:#6B7280}
 .sc-list{display:flex;flex-direction:column;gap:10px}
 .sc{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:14px;cursor:pointer}
 .sc:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .sc-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.sc-rank{width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;background:#F7F8FA;color:#6B7280;flex-shrink:0}
+.sc-rank{width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;background:#F7F8FA;color:#6B7280;flex-shrink:0}
 .r1{background:#FFD700!important;color:#7A5C00!important}
 .r2{background:#E0E0E0!important;color:#555!important}
 .r3{background:#D4A574!important;color:#5C3A1E!important}
-.sc-name{font-size:13px;font-weight:600;flex:1;line-height:1.3}
-.sc-score{font-size:18px;font-weight:800;min-width:44px;text-align:right}
+.sc-name{font-size:14px;font-weight:600;flex:1;line-height:1.3}
+.sc-score{font-size:20px;font-weight:800;min-width:44px;text-align:right}
 .brow{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.blbl{font-size:10px;color:#6B7280;width:44px;flex-shrink:0}
-.bout{flex:1;height:5px;background:#E4E6EA;border-radius:3px}
-.bin{height:5px;border-radius:3px}
-.bval{font-size:10px;color:#6B7280;min-width:28px;text-align:right}
+.blbl{font-size:11px;color:#6B7280;width:44px;flex-shrink:0}
+.bout{flex:1;height:6px;background:#E4E6EA;border-radius:3px}
+.bin{height:6px;border-radius:3px}
+.bval{font-size:11px;color:#6B7280;min-width:28px;text-align:right}
 .sc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
-.stag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.stag{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500}
 .stag.hit{background:#E8F7F2;color:#0F9D6E}
-.stag.miss{background:#F7F8FA;color:#9CA3AF;border:1px solid #E4E6EA}
+.stag.miss{background:#F7F8FA;color:#6B7280;border:1px solid #E4E6EA}
 .sc-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA}
-.sc-meta span{font-size:11px;color:#6B7280}.sc-meta strong{color:#1A1D23}
+.sc-meta span{font-size:12px;color:#6B7280}.sc-meta strong{color:#1A1D23}
 .sc-act{margin-top:10px;display:flex;gap:6px}
 .lbar{padding:10px 14px;background:#fff;border-bottom:1px solid #E4E6EA;display:flex;gap:6px;flex-wrap:wrap}
 .lgrid{padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .card{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:13px}
 .ct{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
-.cn{font-size:12px;font-weight:600;flex:1;margin-right:8px;line-height:1.4}
-.badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.cn{font-size:13px;font-weight:600;flex:1;margin-right:8px;line-height:1.4}
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap;flex-shrink:0}
 .bg-g{background:#E8F7F2;color:#0F9D6E}
 .bg-a{background:#FFFBEB;color:#D97706}
 .bg-p{background:#F5F3FF;color:#7C3AED}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
-.tag{font-size:10px;padding:2px 7px;background:#F7F8FA;border:1px solid #E4E6EA;border-radius:6px;color:#6B7280}
+.tag{font-size:11px;padding:3px 8px;background:#F7F8FA;border:1px solid #E4E6EA;border-radius:6px;color:#6B7280}
 .mr{display:flex;flex-wrap:wrap;gap:8px}
-.meta{font-size:11px;color:#6B7280}.meta strong{color:#1A1D23}
-.fb{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;display:inline-block}
+.meta{font-size:12px;color:#6B7280}.meta strong{color:#1A1D23}
+.fb{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap;display:inline-block}
 .fn{background:#E8F7F2;color:#0F9D6E}
 .fw{background:#FFFBEB;color:#D97706}
 .fo{background:#FEF2F2;color:#DC2626}
-.stbtn{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;cursor:pointer;border:none;display:inline-block}
+.stbtn{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;cursor:pointer;border:none;display:inline-block}
 .sa{background:#E8F7F2;color:#0F9D6E}
 .sp2{background:#EFF6FF;color:#2563EB}
-.sc3{background:#F3F4F6;color:#9CA3AF}
-.si{width:100%;padding:7px 10px;border:1px solid #E4E6EA;border-radius:7px;font-size:12px;background:#F7F8FA;color:#1A1D23}
+.sc3{background:#F3F4F6;color:#4B5563}
+.si{width:100%;padding:7px 10px;border:1px solid #E4E6EA;border-radius:7px;font-size:13px;background:#F7F8FA;color:#1A1D23}
 .si:focus{outline:none;border-color:#2563EB}
 .pbody{padding:14px;max-width:860px;margin:0 auto}
 .pbox{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:14px;margin-bottom:12px}
-.ptitle{font-size:15px;font-weight:700;margin-bottom:6px}
-.pdesc{font-size:11px;color:#6B7280;margin-bottom:12px;line-height:1.5}
-textarea{width:100%;min-height:200px;padding:9px;border:1px solid #E4E6EA;border-radius:7px;font-size:12px;resize:vertical;background:#F7F8FA;color:#1A1D23;line-height:1.6;font-family:inherit}
+.ptitle{font-size:16px;font-weight:700;margin-bottom:6px}
+.pdesc{font-size:12px;color:#6B7280;margin-bottom:12px;line-height:1.5}
+textarea{width:100%;min-height:200px;padding:9px;border:1px solid #E4E6EA;border-radius:7px;font-size:13px;resize:vertical;background:#F7F8FA;color:#1A1D23;line-height:1.6;font-family:inherit}
 textarea:focus{outline:none;border-color:#2563EB}
-.pr{margin-top:8px;padding:10px;background:#F7F8FA;border-radius:7px;font-size:11px;line-height:1.8;white-space:pre-wrap;max-height:160px;overflow-y:auto;display:none}
+.pr{margin-top:8px;padding:10px;background:#F7F8FA;border-radius:7px;font-size:12px;line-height:1.8;white-space:pre-wrap;max-height:160px;overflow-y:auto;display:none}
 .pr.show{display:block}
-.btn{padding:6px 12px;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer}
+.btn{padding:6px 12px;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer}
 .btn-d{background:#1A1D23;color:#fff}.btn-d:hover{opacity:.8}
 .btn-l{background:#F7F8FA;border:1px solid #E4E6EA;color:#1A1D23}.btn-l:hover{background:#E4E6EA}
 .mow{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}
 .mow.show{display:flex}
 .modal{background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .mh{padding:14px 18px;border-bottom:1px solid #E4E6EA;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
-.mt2{font-size:13px;font-weight:700}
-.mc{background:none;border:none;font-size:22px;cursor:pointer;color:#6B7280}
+.mt2{font-size:14px;font-weight:700}
+.mc{background:none;border:none;font-size:24px;cursor:pointer;color:#6B7280}
 .mb{padding:16px 18px;overflow-y:auto;flex:1}
 .mf{padding:10px 18px;border-top:1px solid #E4E6EA;display:flex;gap:6px;justify-content:flex-end;flex-shrink:0}
 .dsec{margin-bottom:14px}
-.dsh{font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #E4E6EA}
-.drow{display:flex;gap:8px;margin-bottom:5px;font-size:12px}
-.dlbl{color:#6B7280;min-width:70px;flex-shrink:0;font-size:11px}
+.dsh{font-size:12px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #E4E6EA}
+.drow{display:flex;gap:8px;margin-bottom:5px;font-size:13px}
+.dlbl{color:#6B7280;min-width:70px;flex-shrink:0;font-size:12px}
 .dval{color:#1A1D23;font-weight:500;flex:1}
 .dtags{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px}
-.dtag{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+.dtag{font-size:12px;padding:3px 9px;border-radius:20px;font-weight:500}
 .dtag.hit{background:#E8F7F2;color:#0F9D6E}
 .dtag.miss{background:#FEF2F2;color:#DC2626}
 .dtag.neu{background:#F5F3FF;color:#7C3AED}
 .ssum{display:flex;gap:10px;background:#F7F8FA;border-radius:8px;padding:12px;margin-bottom:14px}
 .sblk{flex:1;text-align:center}
-.sblkv{font-size:20px;font-weight:800}
-.sblkl{font-size:10px;color:#6B7280;margin-top:2px}
-.cpbtn{width:100%;padding:10px 14px;background:#F7F8FA;border:1px dashed #E4E6EA;border-radius:8px;font-size:12px;color:#6B7280;cursor:pointer;text-align:left;margin-top:8px;line-height:1.7}
+.sblkv{font-size:22px;font-weight:800}
+.sblkl{font-size:11px;color:#6B7280;margin-top:2px}
+.cpbtn{width:100%;padding:10px 14px;background:#F7F8FA;border:1px dashed #E4E6EA;border-radius:8px;font-size:13px;color:#6B7280;cursor:pointer;text-align:left;margin-top:8px;line-height:1.7}
 .cpbtn:hover{background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF}
 .gbox{max-width:600px;margin:20px auto;padding:0 14px}
 .gi{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:16px;margin-bottom:12px}
-.gt{font-size:13px;font-weight:700;margin-bottom:8px}
-.gd{font-size:11px;color:#6B7280;line-height:1.8;margin-bottom:12px}
-.gs{background:#F7F8FA;border-radius:8px;padding:12px;font-size:11px;line-height:2;color:#6B7280;margin-top:10px}
-.abanner{background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px;margin:14px;font-size:12px}
+.gt{font-size:14px;font-weight:700;margin-bottom:8px}
+.gd{font-size:12px;color:#6B7280;line-height:1.8;margin-bottom:12px}
+.gs{background:#F7F8FA;border-radius:8px;padding:12px;font-size:12px;line-height:2;color:#6B7280;margin-top:10px}
+.abanner{background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px;margin:14px;font-size:13px}
 .prev-item{background:#F7F8FA;border:1px solid #E4E6EA;border-radius:8px;padding:10px 12px;margin-bottom:8px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid #E4E6EA;border-top-color:#1A1D23;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.empty{text-align:center;padding:50px;color:#9CA3AF}
+.empty{text-align:center;padding:50px;color:#6B7280;font-size:13px}
 @media(max-width:600px){.two-pane{flex-direction:column}.lpane{width:100%;border-right:none;border-bottom:1px solid #E4E6EA}}
 </style>
 </head>
@@ -130,19 +130,12 @@ textarea:focus{outline:none;border-color:#2563EB}
   <button class="hbtn" onclick="loadData()">↻ 再読込</button>
 </div>
 
-<div id="apibanner" class="abanner" style="display:none">
-  <div style="font-size:13px;font-weight:600;color:#C2410C;margin-bottom:6px">APIキーが必要です</div>
-  <div style="color:#9A3412;line-height:1.6;margin-bottom:8px;font-size:11px">情報追加のAI解析に必要です。console.anthropic.com で取得してください。</div>
-  <input type="password" class="si" id="apibanner-inp" placeholder="sk-ant-api03-..." style="border-color:#FED7AA;background:#fff" oninput="saveApiKey(this.value)">
-</div>
-
 <div class="tabs">
   <button class="tab on" onclick="doTab(this)" data-tab="match">マッチング</button>
   <button class="tab" onclick="doTab(this)" data-tab="rev">逆引き検索</button>
   <button class="tab" onclick="doTab(this)" data-tab="projs">案件一覧</button>
   <button class="tab" onclick="doTab(this)" data-tab="staffs">要員一覧</button>
   <button class="tab" onclick="doTab(this)" data-tab="paste">情報追加</button>
-  <button class="tab" onclick="doTab(this)" data-tab="cfg">設定</button>
 </div>
 
 <div id="tab-match" class="sec on">
@@ -197,7 +190,7 @@ textarea:focus{outline:none;border-color:#2563EB}
 </div>
 
 <div id="tab-paste" class="sec">
-  <div style="padding:10px 14px;background:#fff;border-bottom:1px solid #E4E6EA;font-size:12px;color:#6B7280">
+  <div style="padding:10px 14px;background:#fff;border-bottom:1px solid #E4E6EA;font-size:13px;color:#6B7280">
     案件でも要員でも混在でも複数件でも、そのまま貼り付けるだけ。AIが自動識別してDBとスプレッドシートに追加します
   </div>
   <div class="pbody">
@@ -206,51 +199,19 @@ textarea:focus{outline:none;border-color:#2563EB}
       <div class="pdesc">案件・要員・複数件混在・配信番号付き、どんな形式でもOKです。AIが自動で識別して振り分けます。</div>
       <textarea id="allta" placeholder="ここにLINEやメールのテキストをそのまま貼り付けてください。"></textarea>
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-d" style="padding:8px 20px;font-size:13px" onclick="parseAll()">AIで自動識別してDBに追加</button>
+        <button class="btn btn-d" style="padding:8px 20px;font-size:14px" onclick="parseAll()">AIで自動識別してDBに追加</button>
         <button class="btn btn-l" onclick="clearPaste()">クリア</button>
-        <span id="allcnt" style="font-size:12px;color:#6B7280"></span>
+        <span id="allcnt" style="font-size:13px;color:#6B7280"></span>
       </div>
       <div class="pr" id="allpr"></div>
     </div>
     <div id="allprev" style="display:none">
-      <div style="font-size:13px;font-weight:600;margin-bottom:10px">解析結果（BP名を確認・入力してから追加してください）</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:10px">解析結果（BP名を確認・入力してから追加してください）</div>
       <div id="prevp"></div>
       <div id="prevs"></div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-d" style="padding:8px 20px" onclick="confirmAdd()">この内容でDBに追加する</button>
         <button class="btn btn-l" onclick="hidePreview()">やり直す</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="tab-cfg" class="sec">
-  <div class="gbox">
-    <div class="gi">
-      <div class="gt">Anthropic APIキー設定</div>
-      <div class="gd">情報追加のAI解析に必要です。console.anthropic.com で取得できます（1回あたり約1円以下）。キーはこのブラウザにのみ保存されます。</div>
-      <input class="si" type="password" id="apiinp" placeholder="sk-ant-api03-..." style="margin-bottom:8px">
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-d" onclick="saveApiKeySet()">保存</button>
-        <button class="btn btn-l" onclick="clearApiKey()">削除</button>
-      </div>
-      <div id="apist" style="margin-top:8px;font-size:11px;color:#6B7280"></div>
-    </div>
-    <div class="gi">
-      <div class="gt">Googleスプレッドシート連携（GAS URL）</div>
-      <div class="gd">スプレッドシートのデータを読み込み・追加するためのURLです。</div>
-      <input class="si" id="gasinp" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:8px">
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-d" onclick="saveGasUrl()">保存して再読込</button>
-        <button class="btn btn-l" onclick="testGas()">接続テスト</button>
-      </div>
-      <div id="gasst" style="margin-top:8px;font-size:11px;color:#6B7280"></div>
-      <div class="gs">
-        <div style="font-weight:600;color:#1A1D23;margin-bottom:4px">GAS URL取得手順</div>
-        <div>1. スプレッドシート → 拡張機能 → Apps Script</div>
-        <div>2. step2_gas.js の内容を貼り付けてスプレッドシートIDを変更</div>
-        <div>3. デプロイ → 新しいデプロイ → ウェブアプリ</div>
-        <div>4. アクセスできるユーザー：全員 に設定してURLをコピー</div>
       </div>
     </div>
   </div>
@@ -265,91 +226,26 @@ textarea:focus{outline:none;border-color:#2563EB}
 </div>
 
 <script>
-var GAS_URL = localStorage.getItem('sket_gas_url') || '';
-var API_KEY = localStorage.getItem('sket_api_key') || '';
+// 従業員用ビルド：GAS URLはここに直接埋め込む（設定タブ・APIキー入力は廃止）
+// ★ここをGASデプロイ後のウェブアプリURLに書き換えてください★
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbwxigoqSq5dMELhMCwn3ctcIedIGAis3ymu1lY2SI_qSxWD9PLKjf0hMmYqqKZfXnYmCw/exec';
 var PROJECTS = [], STAFF = [];
 var _pendP = [], _pendS = [];
 var _curPrompt = '';
 
-window.addEventListener('load', function() {
-  if (GAS_URL) document.getElementById('gasinp').value = GAS_URL;
-  if (API_KEY) {
-    document.getElementById('apiinp').value = API_KEY;
-    document.getElementById('apist').textContent = 'APIキーが設定されています';
-    document.getElementById('apist').style.color = '#0F9D6E';
-  } else {
-    document.getElementById('apibanner').style.display = 'block';
-  }
-});
-
-function saveApiKey(v) {
-  API_KEY = v.trim();
-  localStorage.setItem('sket_api_key', API_KEY);
-  if (API_KEY) document.getElementById('apibanner').style.display = 'none';
-}
-function saveApiKeySet() {
-  var v = document.getElementById('apiinp').value.trim();
-  if (!v) { alert('APIキーを入力してください'); return; }
-  saveApiKey(v);
-  document.getElementById('apist').textContent = '保存しました';
-  document.getElementById('apist').style.color = '#0F9D6E';
-}
-function clearApiKey() {
-  API_KEY = '';
-  localStorage.removeItem('sket_api_key');
-  document.getElementById('apiinp').value = '';
-  document.getElementById('apist').textContent = '削除しました';
-  document.getElementById('apist').style.color = '#6B7280';
-  document.getElementById('apibanner').style.display = 'block';
-}
-function saveGasUrl() {
-  var u = document.getElementById('gasinp').value.trim();
-  if (!u) { alert('URLを入力してください'); return; }
-  GAS_URL = u;
-  localStorage.setItem('sket_gas_url', u);
-  alert('保存しました');
-  loadData();
-}
-function testGas() {
-  var u = document.getElementById('gasinp').value.trim();
-  var st = document.getElementById('gasst');
-  if (!u) { st.textContent = 'URLを入力してください'; return; }
-  st.textContent = '接続テスト中...';
-  fetch(u + '?type=all').then(function(r) { return r.json(); }).then(function(d) {
-    var pc = (d.projects||[]).length, sc2 = (d.staff||[]).length;
-    st.textContent = '接続成功！案件' + pc + '件・要員' + sc2 + '名';
-    st.style.color = '#0F9D6E';
-  }).catch(function(e) {
-    st.textContent = '接続失敗: ' + e.message;
-    st.style.color = '#DC2626';
-  });
-}
-
 function callClaude(prompt) {
-  if (!API_KEY) {
-    doTab(document.querySelectorAll('.tab')[5], 'cfg');
-    return Promise.reject(new Error('APIキーが設定されていません。設定タブで設定してください。'));
+  if (!GAS_URL || GAS_URL.indexOf('★') >= 0) {
+    return Promise.reject(new Error('GAS_URLが未設定です（開発者にご連絡ください）'));
   }
-  return fetch('https://api.anthropic.com/v1/messages', {
+  return fetch(GAS_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-opus-4-5',
-      max_tokens: 1500,
-      messages: [{role: 'user', content: prompt}]
-    })
-  }).then(function(r) {
-    if (!r.ok) return r.json().then(function(e) { throw new Error((e.error && e.error.message) || 'APIエラー'); });
-    return r.json();
-  }).then(function(d) {
-    var t = d.content && d.content.find(function(c) { return c.type === 'text'; });
-    return t ? t.text : '';
-  });
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ type: 'claude', prompt: prompt })
+  }).then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) throw new Error(d.error);
+      return d.text || '';
+    });
 }
 
 function getFresh(ds) {
@@ -427,20 +323,62 @@ function updateStats() {
   document.getElementById('su').textContent = n.getHours() + ':' + String(n.getMinutes()).padStart(2,'0');
 }
 
+// スキル表記ゆれの正規化辞書（左側どの表記でも右側の代表名に統一して比較する）
+var SKILL_ALIASES = {
+  'reactjs':'react','react.js':'react',
+  'vuejs':'vue','vue.js':'vue',
+  'nextjs':'next','next.js':'next',
+  'nuxtjs':'nuxt','nuxt.js':'nuxt',
+  'nodejs':'node','node.js':'node',
+  'aws':'aws','amazonwebservices':'aws',
+  'gcp':'gcp','googlecloud':'gcp','googlecloudplatform':'gcp',
+  'azure':'azure','microsoftazure':'azure',
+  'ts':'typescript',
+  'js':'javascript',
+  'rubyonrails':'rails','ror':'rails',
+  'springboot':'spring','spring boot':'spring',
+  'csharp':'c#','c♯':'c#',
+  'dotnet':'.net','.netcore':'.net',
+  'golang':'go',
+  'k8s':'kubernetes',
+  'cicd':'ci/cd','ci・cd':'ci/cd',
+  'pm':'プロジェクトマネージャー','プロジェクトマネジメント':'プロジェクトマネージャー','プロマネ':'プロジェクトマネージャー',
+  'せいせいai':'生成ai','genai':'生成ai','generativeai':'生成ai',
+  'githubactions':'githubactions','github':'github',
+  'postgres':'postgresql'
+};
+function normSkill_(sk) {
+  var k = String(sk || '').toLowerCase().replace(/[.\s\-_]/g, '');
+  return SKILL_ALIASES[k] || k;
+}
+
 function calcScore(s, p) {
   var hit = [], miss = [];
   (p.skills || []).forEach(function(ps) {
-    var pl = ps.toLowerCase();
-    var ok = (s.skills || []).some(function(ss) { return ss.toLowerCase().indexOf(pl) >= 0 || pl.indexOf(ss.toLowerCase()) >= 0; });
+    var pn = normSkill_(ps);
+    var ok = (s.skills || []).some(function(ss) {
+      var sn = normSkill_(ss);
+      return sn === pn || sn.indexOf(pn) >= 0 || pn.indexOf(sn) >= 0;
+    });
     if (ok) hit.push(ps); else miss.push(ps);
   });
   var skillPts = (p.skills && p.skills.length) ? Math.round(hit.length / p.skills.length * 60) : 0;
   var diff = (p.unit_max || 70) - (s.unit_min || 60);
   var unitPts = diff >= 0 ? 25 : diff >= -10 ? 15 : diff >= -20 ? 5 : 0;
+
   var rm = p.remote || '';
   var isRm = /リモート|在宅|テレワーク/.test(rm);
-  var workPts = (s.remote && isRm) || (!s.remote && /常駐/.test(rm)) ? 15 : 10;
-  return {total: skillPts+unitPts+workPts, skillPts:skillPts, unitPts:unitPts, workPts:workPts, hit:hit, miss:miss};
+  var workPts, locNote;
+  if (isRm) {
+    workPts = s.remote ? 15 : 10;
+    locNote = null;
+  } else {
+    // 常駐・ハイブリッド等：勤務地(都道府県)の一致で判定する
+    if (!p.location || !s.location) { workPts = 8; locNote = '勤務地情報なし'; }
+    else if (p.location === s.location) { workPts = 15; locNote = null; }
+    else { workPts = 2; locNote = p.location + '⇔' + s.location + '（勤務地不一致）'; }
+  }
+  return {total: skillPts+unitPts+workPts, skillPts:skillPts, unitPts:unitPts, workPts:workPts, hit:hit, miss:miss, locNote:locNote};
 }
 
 function doTab(el) { var name = el.getAttribute("data-tab");
@@ -452,7 +390,7 @@ function doTab(el) { var name = el.getAttribute("data-tab");
 
 function mkCard(r, i, sId, pId, isMatch) {
   var obj  = isMatch ? r.p : r.s;
-  var col  = r.total >= 70 ? '#0F9D6E' : r.total >= 45 ? '#D97706' : '#9CA3AF';
+  var col  = r.total >= 70 ? '#0F9D6E' : r.total >= 45 ? '#D97706' : '#6B7280';
   var rc   = i===0?'r1':i===1?'r2':i===2?'r3':'';
   var fr   = getFresh(isMatch ? (r.p.date||'') : (r.s.date||''));
   var st   = getSt(isMatch ? 'project' : 'staff', obj.id);
@@ -460,11 +398,12 @@ function mkCard(r, i, sId, pId, isMatch) {
   var htags = r.hit.map(function(sk) { return '<span class="stag hit">v ' + sk + '</span>'; }).join('');
   var mtags = r.miss.map(function(sk) { return '<span class="stag miss">x ' + sk + '</span>'; }).join('');
   var meta = isMatch
-    ? '<span>単価: <strong>' + obj.unit + '</strong></span><span>勤務: <strong>' + obj.remote + '</strong></span><span>稼働: <strong>' + obj.start + '</strong></span><span>元: <strong>' + obj.source + '</strong></span>'
+    ? '<span>単価: <strong>' + obj.unit + '</strong></span><span>勤務: <strong>' + obj.remote + (obj.location?'／'+obj.location:'') + '</strong></span><span>稼働: <strong>' + obj.start + '</strong></span><span>元: <strong>' + obj.source + '</strong></span>'
     : '<span>単価: <strong>' + obj.unit_min + '万〜</strong></span><span>リモート: <strong>' + (obj.remote?'希望':'常駐可') + '</strong></span><span>稼働: <strong>' + obj.start + '</strong></span><span>BP: <strong>' + obj.source + '</strong></span>';
+  var locWarn = r.locNote ? '<div style="font-size:11px;color:#D97706;margin-top:4px">⚠ ' + r.locNote + '</div>' : '';
   var h = '<div class="sc" style="' + (st==='closed'?'opacity:0.4':'') + '" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">';
   h += '<div class="sc-top"><div class="sc-rank ' + rc + '">' + (i+1) + '</div><div class="sc-name">' + obj.name + '</div>';
-  h += '<div class="sc-score" style="color:' + col + '">' + r.total + '<span style="font-size:11px;font-weight:400">点</span></div></div>';
+  h += '<div class="sc-score" style="color:' + col + '">' + r.total + '<span style="font-size:12px;font-weight:400">点</span></div></div>';
   h += '<div class="brow"><span class="blbl">スキル</span><div class="bout"><div class="bin" style="width:' + (r.skillPts/60*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.skillPts + '/60</span></div>';
   h += '<div class="brow"><span class="blbl">単価</span><div class="bout"><div class="bin" style="width:' + (r.unitPts/25*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.unitPts + '/25</span></div>';
   h += '<div class="brow"><span class="blbl">働き方</span><div class="bout"><div class="bin" style="width:' + (r.workPts/15*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.workPts + '/15</span></div>';
@@ -472,7 +411,7 @@ function mkCard(r, i, sId, pId, isMatch) {
   h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="' + stType + '" data-id="' + obj.id + '" onclick="event.stopPropagation();cycleStBtn(this)">' + stLbl(st) + '</button></div>';
-  h += '<div class="sc-meta">' + meta + '</div>';
+  h += '<div class="sc-meta">' + meta + '</div>' + locWarn;
   h += '<div class="sc-act" onclick="event.stopPropagation()"><button class="btn btn-d" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">詳細を見る</button></div>';
   h += '</div>';
   return h;
@@ -510,11 +449,11 @@ function pickS(id) {
     return {p:p, s:s, total:sc.total, skillPts:sc.skillPts, unitPts:sc.unitPts, workPts:sc.workPts, hit:sc.hit, miss:sc.miss};
   }).sort(function(a,b) { return b.total-a.total; }).slice(0,8);
   var h = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-  h += '<span style="font-size:14px;font-weight:700">' + s.name + '</span>';
+  h += '<span style="font-size:15px;font-weight:700">' + s.name + '</span>';
   h += '<span class="badge bg-g">' + s.unit_min + '万〜</span>';
   h += '<span class="badge bg-p">' + (s.remote?'リモート希望':'常駐可') + '</span></div>';
-  h += '<div style="font-size:11px;color:#6B7280;margin-bottom:12px">スキル: ' + (s.skills||[]).join(' . ') + '</div>';
-  h += '<div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:10px">マッチング結果（上位8件）</div>';
+  h += '<div style="font-size:12px;color:#6B7280;margin-bottom:12px">スキル: ' + (s.skills||[]).join(' . ') + '</div>';
+  h += '<div style="font-size:12px;font-weight:600;color:#6B7280;margin-bottom:10px">マッチング結果（上位8件）</div>';
   h += '<div class="sc-list">' + res.map(function(r,i) { return mkCard(r,i,s.id,r.p.id,true); }).join('') + '</div>';
   document.getElementById('mres').innerHTML = h;
 }
@@ -538,11 +477,11 @@ function pickP(id) {
     return {p:p, s:s, total:sc.total, skillPts:sc.skillPts, unitPts:sc.unitPts, workPts:sc.workPts, hit:sc.hit, miss:sc.miss};
   }).sort(function(a,b) { return b.total-a.total; }).slice(0,8);
   var h = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-  h += '<span style="font-size:14px;font-weight:700">' + p.name + '</span>';
+  h += '<span style="font-size:15px;font-weight:700">' + p.name + '</span>';
   h += '<span class="badge bg-a">' + p.unit + '</span>';
   h += '<span class="badge bg-p">' + p.remote + '</span></div>';
-  h += '<div style="font-size:11px;color:#6B7280;margin-bottom:12px">必須スキル: ' + (p.skills||[]).join(' . ') + '</div>';
-  h += '<div style="font-size:11px;font-weight:600;color:#6B7280;margin-bottom:10px">合う要員（上位8名）</div>';
+  h += '<div style="font-size:12px;color:#6B7280;margin-bottom:12px">必須スキル: ' + (p.skills||[]).join(' . ') + '</div>';
+  h += '<div style="font-size:12px;font-weight:600;color:#6B7280;margin-bottom:10px">合う要員（上位8名）</div>';
   h += '<div class="sc-list">' + res.map(function(r,i) { return mkCard(r,i,r.s.id,p.id,false); }).join('') + '</div>';
   document.getElementById('rres').innerHTML = h;
 }
@@ -559,7 +498,7 @@ function mkCardGrid(p) {
   h += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="project" data-id="' + p.id + '" onclick="cycleStBtn(this)">' + stLbl(st) + '</button></div>';
   h += '<div class="tags">' + tags + '</div>';
-  h += '<div class="mr"><div class="meta">勤務: <strong>' + p.remote + '</strong></div><div class="meta">稼働: <strong>' + p.start + '</strong></div><div class="meta">元: <strong>' + p.source + '</strong></div></div>';
+  h += '<div class="mr"><div class="meta">勤務: <strong>' + p.remote + (p.location?'／'+p.location:'') + '</strong></div><div class="meta">稼働: <strong>' + p.start + '</strong></div><div class="meta">元: <strong>' + p.source + '</strong></div></div>';
   h += '</div>';
   return h;
 }
@@ -599,7 +538,7 @@ function openDet(sId, pId, isMatch) {
   var p = PROJECTS.find(function(x) { return x.id === pId; });
   if (!s || !p) return;
   var sc = calcScore(s, p);
-  var col = sc.total>=70?'#0F9D6E':sc.total>=45?'#D97706':'#9CA3AF';
+  var col = sc.total>=70?'#0F9D6E':sc.total>=45?'#D97706':'#6B7280';
   document.getElementById('detttl').textContent = s.name + ' x ' + p.name;
 
   _curPrompt = 'SES要員を案件に提案するメール文（件名含む）を作成してください。\n\n'
@@ -639,17 +578,36 @@ function openDet(sId, pId, isMatch) {
   h += '<div class="drow"><span class="dlbl">案件名</span><span class="dval">' + p.name + '</span></div>';
   h += '<div class="drow"><span class="dlbl">単価</span><span class="dval">' + p.unit + '</span></div>';
   h += '<div class="drow"><span class="dlbl">稼働開始</span><span class="dval">' + p.start + '</span></div>';
-  h += '<div class="drow"><span class="dlbl">勤務形態</span><span class="dval">' + p.remote + '</span></div>';
+  h += '<div class="drow"><span class="dlbl">勤務形態</span><span class="dval">' + p.remote + (p.location?'（'+p.location+'）':'') + '</span></div>';
   h += '<div class="drow"><span class="dlbl">情報元</span><span class="dval">' + p.source + '</span></div>';
+  if (sc.locNote) h += '<div class="drow"><span class="dlbl">勤務地判定</span><span class="dval" style="color:#D97706">⚠ ' + sc.locNote + '</span></div>';
   h += '<div class="dtags">' + skillTags + '</div></div>';
   h += '<div class="dsec"><div class="dsh">提案文を作成する</div>';
-  h += '<div style="font-size:11px;color:#6B7280;margin-bottom:6px;line-height:1.6">下のボタンを押してプロンプトをコピーし、Claude.ai（このチャット）に貼り付けてください。</div>';
+  h += '<div style="font-size:12px;color:#6B7280;margin-bottom:6px;line-height:1.6">下のボタンを押してプロンプトをコピーし、Claude.ai（このチャット）に貼り付けてください。</div>';
   h += '<button class="cpbtn" onclick="copyPrompt()">提案文プロンプトをコピーする（Claude.aiに貼り付けてください）';
-  h += '<br><span style="font-size:10px;margin-top:2px;display:block">要員: ' + s.name + '  x  案件: ' + p.name + '</span></button></div>';
+  h += '<br><span style="font-size:11px;margin-top:2px;display:block">要員: ' + s.name + '  x  案件: ' + p.name + '</span></button></div>';
+  h += '<div class="dsec"><div class="dsh">BP連絡文（LINE用）を自動生成</div>';
+  h += '<div style="font-size:12px;color:#6B7280;margin-bottom:6px;line-height:1.6">BP（' + s.source + '）にLINEで送る連絡文をAIが作成します。生成後、そのままコピーして送信してください。</div>';
+  h += '<button class="btn btn-d" onclick="genBpLineMsg(' + sId + ',' + pId + ')">LINE連絡文を生成</button>';
+  h += '<div class="pr" id="bplinepr" style="margin-top:8px"></div></div>';
   document.getElementById('detbody').innerHTML = h;
   document.getElementById('detmodal').classList.add('show');
 }
 function closeDetModal() { document.getElementById('detmodal').classList.remove('show'); }
+function genBpLineMsg(sId, pId) {
+  var s = STAFF.find(function(x) { return x.id === sId; });
+  var p = PROJECTS.find(function(x) { return x.id === pId; });
+  if (!s || !p) return;
+  var box = document.getElementById('bplinepr');
+  box.className = 'pr show'; box.textContent = '生成中...';
+  var prompt = 'BP（協力会社）にLINEで送るビジネス連絡文を作成してください。カジュアルすぎず、丁寧すぎない、社内チャットのような自然な文体で、150字程度。\n\n'
+    + '要員: ' + s.name + '（スキル: ' + (s.skills||[]).join('、') + '、希望単価' + s.unit_min + '万〜）\n'
+    + '案件: ' + p.name + '（単価' + p.unit + '、' + p.remote + '）\n'
+    + 'この要員をこの案件に提案したい旨を、BP担当者への確認連絡として書いてください。件名は不要、本文のみ。';
+  callClaude(prompt).then(function(text) {
+    box.textContent = text;
+  }).catch(function(e) { box.textContent = 'エラー: ' + e.message; });
+}
 function copyPrompt() {
   navigator.clipboard.writeText(_curPrompt).then(function() {
     alert('コピーしました！\nClaude.ai（このチャット画面）に貼り付けてください。');
@@ -672,7 +630,7 @@ function parseAll() {
   cnt.textContent = ''; document.getElementById('allprev').style.display = 'none';
 
   var prompt = 'SES案件・要員情報のテキストからすべての情報を抽出してJSONで返してください（説明なし・JSONのみ）。\n\n'
-    + '{"projects":[{"name":"案件名","skills":["スキル"],"unit":"単価","unit_max":数値,"remote":"フルリモートまたはリモート可またはハイブリッドまたは常駐","start":"稼働開始","source":"情報元"}],'
+    + '{"projects":[{"name":"案件名","skills":["スキル"],"unit":"単価","unit_max":数値,"remote":"フルリモートまたはリモート可またはハイブリッドまたは常駐","location":"常駐/ハイブリッドの場合の勤務先都道府県（フルリモートなら空文字）","start":"稼働開始","source":"情報元"}],'
     + '"staff":[{"name":"名前(年齢)","skills":["スキル"],"unit_min":数値,"remote":true,"start":"稼働開始","location":"都道府県","source":"所属企業"}]}\n\n'
     + '案件判断：案件名・必須スキル・単価・配信番号があれば案件。要員判断：氏名・スキル・希望単価があれば要員。unit_max不明なら70。unit_min不明なら60。remoteは常駐系ならfalse。\n\nテキスト:\n' + text;
 
@@ -686,15 +644,15 @@ function parseAll() {
 
     var ph = '';
     if (_pendP.length > 0) {
-      ph += '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#0F9D6E;margin-bottom:6px">案件 ' + _pendP.length + '件</div>';
+      ph += '<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:600;color:#0F9D6E;margin-bottom:6px">案件 ' + _pendP.length + '件</div>';
       for (var i = 0; i < _pendP.length; i++) {
         var pp = _pendP[i]; var bc = pp.source ? '#E4E6EA' : '#DC2626';
-        var pt = (pp.skills||[]).map(function(sk) { return '<span style="font-size:10px;padding:2px 7px;background:#E8F7F2;color:#0F9D6E;border-radius:20px">' + sk + '</span>'; }).join('');
+        var pt = (pp.skills||[]).map(function(sk) { return '<span style="font-size:11px;padding:3px 8px;background:#E8F7F2;color:#0F9D6E;border-radius:20px">' + sk + '</span>'; }).join('');
         ph += '<div class="prev-item">';
-        ph += '<div style="font-size:12px;font-weight:600;margin-bottom:6px">' + (i+1) + '. ' + pp.name + '</div>';
-        ph += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + pp.unit + '</strong></span><span>勤務: <strong>' + pp.remote + '</strong></span><span>稼働: <strong>' + pp.start + '</strong></span></div>';
-        ph += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
-        ph += '<input type="text" id="pp' + i + '" value="' + (pp.source||'') + '" placeholder="例：フリースタイル" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc + ';border-radius:6px;font-size:12px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
+        ph += '<div style="font-size:13px;font-weight:600;margin-bottom:6px">' + (i+1) + '. ' + pp.name + '</div>';
+        ph += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + pp.unit + '</strong></span><span>勤務: <strong>' + pp.remote + (pp.location?'／'+pp.location:'') + '</strong></span><span>稼働: <strong>' + pp.start + '</strong></span></div>';
+        ph += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
+        ph += '<input type="text" id="pp' + i + '" value="' + (pp.source||'') + '" placeholder="例：フリースタイル" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc + ';border-radius:6px;font-size:13px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
         ph += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + pt + '</div></div>';
       }
       ph += '</div>';
@@ -702,15 +660,15 @@ function parseAll() {
 
     var sh = '';
     if (_pendS.length > 0) {
-      sh += '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#7C3AED;margin-bottom:6px">要員 ' + _pendS.length + '名</div>';
+      sh += '<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:600;color:#7C3AED;margin-bottom:6px">要員 ' + _pendS.length + '名</div>';
       for (var j = 0; j < _pendS.length; j++) {
         var ps = _pendS[j]; var bc2 = ps.source ? '#E4E6EA' : '#DC2626';
-        var st2 = (ps.skills||[]).map(function(sk) { return '<span style="font-size:10px;padding:2px 7px;background:#F5F3FF;color:#7C3AED;border-radius:20px">' + sk + '</span>'; }).join('');
+        var st2 = (ps.skills||[]).map(function(sk) { return '<span style="font-size:11px;padding:3px 8px;background:#F5F3FF;color:#7C3AED;border-radius:20px">' + sk + '</span>'; }).join('');
         sh += '<div class="prev-item">';
-        sh += '<div style="font-size:12px;font-weight:600;margin-bottom:6px">' + (j+1) + '. ' + ps.name + '</div>';
-        sh += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + ps.unit_min + '万〜</strong></span><span>リモート: <strong>' + (ps.remote?'希望':'常駐可') + '</strong></span><span>稼働: <strong>' + ps.start + '</strong></span></div>';
-        sh += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
-        sh += '<input type="text" id="ps' + j + '" value="' + (ps.source||'') + '" placeholder="例：ZINZAI" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc2 + ';border-radius:6px;font-size:12px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
+        sh += '<div style="font-size:13px;font-weight:600;margin-bottom:6px">' + (j+1) + '. ' + ps.name + '</div>';
+        sh += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + ps.unit_min + '万〜</strong></span><span>リモート: <strong>' + (ps.remote?'希望':'常駐可') + '</strong></span><span>稼働: <strong>' + ps.start + '</strong></span></div>';
+        sh += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
+        sh += '<input type="text" id="ps' + j + '" value="' + (ps.source||'') + '" placeholder="例：ZINZAI" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc2 + ';border-radius:6px;font-size:13px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
         sh += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + st2 + '</div></div>';
       }
       sh += '</div>';
