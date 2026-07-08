@@ -74,6 +74,10 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .pbox{background:#fff;border:1px solid #E4E6EA;border-radius:10px;padding:14px;margin-bottom:12px}
 .ptitle{font-size:16px;font-weight:700;margin-bottom:6px}
 .pdesc{font-size:12px;color:#6B7280;margin-bottom:12px;line-height:1.5}
+.desctoggle{font-size:11px;color:#2563EB;background:none;border:none;cursor:pointer;padding:0;margin:6px 0 0;text-align:left;font-weight:600}
+.desctoggle:hover{text-decoration:underline}
+.descbox{font-size:12px;color:#4B5563;line-height:1.7;background:#F7F8FA;border-radius:8px;padding:10px;margin-top:6px;white-space:pre-wrap;display:none}
+.descbox.show{display:block}
 textarea{width:100%;min-height:200px;padding:9px;border:1px solid #E4E6EA;border-radius:7px;font-size:13px;resize:vertical;background:#F7F8FA;color:#1A1D23;line-height:1.6;font-family:inherit}
 textarea:focus{outline:none;border-color:#2563EB}
 .pr{margin-top:8px;padding:10px;background:#F7F8FA;border-radius:7px;font-size:12px;line-height:1.8;white-space:pre-wrap;max-height:160px;overflow-y:auto;display:none}
@@ -326,6 +330,15 @@ var SAMPLE_S = [
   {id:12,name:'U.C（36歳・女）',skills:['SAP','ERP','FI','CO','ITコンサル','要件定義'],unit_min:80,remote:true,start:'要相談',location:'東京都',source:'那須総建',date:''}
 ];
 
+// AIによる抽出ミスで、スキル名の代わりに長文（概要文など）がskillsに混入した場合の防御フィルタ
+// 20文字を超えるものはスキル名としてあり得ないため、表示・スコア計算から除外する
+var MAX_SKILL_LEN = 20;
+function sanitizeSkills(list) {
+  (list || []).forEach(function(x) {
+    x.skills = (x.skills || []).filter(function(sk) { return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN; });
+  });
+  return list;
+}
 function loadData() {
   document.getElementById('su').textContent = '読込中';
   var done = function() {
@@ -334,11 +347,11 @@ function loadData() {
   };
   if (GAS_URL) {
     fetch(GAS_URL + '?type=all').then(function(r) { return r.json(); }).then(function(d) {
-      PROJECTS = (d.projects && d.projects.length) ? d.projects : SAMPLE_P;
-      STAFF    = (d.staff    && d.staff.length)    ? d.staff    : SAMPLE_S;
+      PROJECTS = sanitizeSkills((d.projects && d.projects.length) ? d.projects : SAMPLE_P);
+      STAFF    = sanitizeSkills((d.staff    && d.staff.length)    ? d.staff    : SAMPLE_S);
       done();
-    }).catch(function() { PROJECTS = SAMPLE_P; STAFF = SAMPLE_S; done(); });
-  } else { PROJECTS = SAMPLE_P; STAFF = SAMPLE_S; done(); }
+    }).catch(function() { PROJECTS = sanitizeSkills(SAMPLE_P); STAFF = sanitizeSkills(SAMPLE_S); done(); });
+  } else { PROJECTS = sanitizeSkills(SAMPLE_P); STAFF = sanitizeSkills(SAMPLE_S); done(); }
 }
 function updateStats() {
   document.getElementById('sp').textContent = PROJECTS.length;
@@ -436,6 +449,11 @@ function mkCard(r, i, sId, pId, isMatch) {
   h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="' + stType + '" data-id="' + obj.id + '" onclick="event.stopPropagation();cycleStBtn(this)">' + stLbl(st) + '</button></div>';
   h += '<div class="sc-meta">' + meta + '</div>' + locWarn;
+  if (obj.desc) {
+    var descElId = (isMatch ? 'mcdesc-p-' : 'mcdesc-s-') + obj.id + '-' + i;
+    h += '<div onclick="event.stopPropagation()"><button class="desctoggle" onclick="toggleDesc(\'' + descElId + '\',this)">▼ 概要を見る</button>';
+    h += '<div class="descbox" id="' + descElId + '">' + obj.desc + '</div></div>';
+  }
   h += '<div class="sc-act" onclick="event.stopPropagation()"><button class="btn btn-d" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">詳細を見る</button></div>';
   h += '</div>';
   return h;
@@ -595,6 +613,12 @@ function applySFilter() {
   });
   renderSG(sortList(list, fs.sort, 'unit_min'));
 }
+function toggleDesc(elId, btn) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  var show = el.classList.toggle('show');
+  btn.textContent = show ? '▲ 概要を閉じる' : '▼ 概要を見る';
+}
 function mkCardGrid(p) {
   var fr = getFresh(p.date||''); var st = getSt('project',p.id);
   var tags = (p.skills||[]).map(function(s) { return '<span class="tag">'+s+'</span>'; }).join('');
@@ -604,6 +628,10 @@ function mkCardGrid(p) {
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="project" data-id="' + p.id + '" onclick="cycleStBtn(this)">' + stLbl(st) + '</button></div>';
   h += '<div class="tags">' + tags + '</div>';
   h += '<div class="mr"><div class="meta">勤務: <strong>' + p.remote + (p.location?'／'+p.location:'') + '</strong></div><div class="meta">稼働: <strong>' + p.start + '</strong></div><div class="meta">元: <strong>' + p.source + '</strong></div></div>';
+  if (p.desc) {
+    h += '<button class="desctoggle" onclick="toggleDesc(\'pdesc-' + p.id + '\',this)">▼ 概要を見る</button>';
+    h += '<div class="descbox" id="pdesc-' + p.id + '">' + p.desc + '</div>';
+  }
   h += '</div>';
   return h;
 }
@@ -618,6 +646,10 @@ function mkStaffCard(s) {
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="staff" data-id="' + s.id + '" onclick="cycleStBtn(this)">' + stLbl(st) + '</button></div>';
   h += '<div class="tags">' + tags + '</div>';
   h += '<div class="mr"><div class="meta">リモート: <strong>' + (s.remote?'希望':'常駐可') + '</strong></div><div class="meta">稼働: <strong>' + s.start + '</strong></div><div class="meta">BP: <strong>' + s.source + '</strong></div></div>';
+  if (s.desc) {
+    h += '<button class="desctoggle" onclick="toggleDesc(\'sdesc-' + s.id + '\',this)">▼ 概要を見る</button>';
+    h += '<div class="descbox" id="sdesc-' + s.id + '">' + s.desc + '</div>';
+  }
   h += '</div>';
   return h;
 }
@@ -650,7 +682,12 @@ function openDet(sId, pId, isMatch) {
   h += '<div class="drow"><span class="dlbl">稼働開始</span><span class="dval">' + s.start + '</span></div>';
   h += '<div class="drow"><span class="dlbl">リモート</span><span class="dval">' + (s.remote?'フルリモート希望':'常駐可') + '</span></div>';
   h += '<div class="drow"><span class="dlbl">所属BP</span><span class="dval">' + s.source + '</span></div>';
-  h += '<div class="dtags">' + sTags + '</div></div>';
+  h += '<div class="dtags">' + sTags + '</div>';
+  if (s.desc) {
+    h += '<button class="desctoggle" onclick="toggleDesc(\'ddesc-s\',this)">▼ 概要を見る</button>';
+    h += '<div class="descbox" id="ddesc-s">' + s.desc + '</div>';
+  }
+  h += '</div>';
   h += '<div class="dsec"><div class="dsh">案件情報</div>';
   h += '<div class="drow"><span class="dlbl">案件名</span><span class="dval">' + p.name + '</span></div>';
   h += '<div class="drow"><span class="dlbl">単価</span><span class="dval">' + p.unit + '</span></div>';
@@ -658,7 +695,12 @@ function openDet(sId, pId, isMatch) {
   h += '<div class="drow"><span class="dlbl">勤務形態</span><span class="dval">' + p.remote + (p.location?'（'+p.location+'）':'') + '</span></div>';
   h += '<div class="drow"><span class="dlbl">情報元</span><span class="dval">' + p.source + '</span></div>';
   if (sc.locNote) h += '<div class="drow"><span class="dlbl">勤務地判定</span><span class="dval" style="color:#D97706">⚠ ' + sc.locNote + '</span></div>';
-  h += '<div class="dtags">' + skillTags + '</div></div>';
+  h += '<div class="dtags">' + skillTags + '</div>';
+  if (p.desc) {
+    h += '<button class="desctoggle" onclick="toggleDesc(\'ddesc-p\',this)">▼ 概要を見る</button>';
+    h += '<div class="descbox" id="ddesc-p">' + p.desc + '</div>';
+  }
+  h += '</div>';
   h += '<div class="dsec"><div class="dsh">提案メール文を自動生成</div>';
   h += '<div style="font-size:12px;color:#6B7280;margin-bottom:6px;line-height:1.6">案件担当者に送る提案メール文（件名＋本文）をAIが作成します。生成後、コピーしてお使いのメールソフトに貼り付けてください。</div>';
   h += '<button class="btn btn-d" onclick="genProposalMail(' + sId + ',' + pId + ')">提案メール文を生成</button>';
@@ -738,9 +780,12 @@ function parseAll() {
   cnt.textContent = ''; document.getElementById('allprev').style.display = 'none';
 
   var prompt = 'SES案件・要員情報のテキストからすべての情報を抽出してJSONで返してください（説明なし・JSONのみ）。\n\n'
-    + '{"projects":[{"name":"案件名","skills":["スキル"],"unit":"単価","unit_max":数値,"remote":"フルリモートまたはリモート可またはハイブリッドまたは常駐","location":"常駐/ハイブリッドの場合の勤務先都道府県（フルリモートなら空文字）","start":"稼働開始","source":"情報元"}],'
-    + '"staff":[{"name":"名前(年齢)","skills":["スキル"],"unit_min":数値,"remote":true,"start":"稼働開始","location":"都道府県","source":"所属企業"}]}\n\n'
-    + '案件判断：案件名・必須スキル・単価・配信番号があれば案件。要員判断：氏名・スキル・希望単価があれば要員。unit_max不明なら70。unit_min不明なら60。remoteは常駐系ならfalse。\n\nテキスト:\n' + text;
+    + '{"projects":[{"name":"案件名","skills":["スキル"],"unit":"単価","unit_max":数値,"remote":"フルリモートまたはリモート可またはハイブリッドまたは常駐","location":"常駐/ハイブリッドの場合の勤務先都道府県（フルリモートなら空文字）","start":"稼働開始","source":"情報元","desc":"概要・仕事内容の説明文"}],'
+    + '"staff":[{"name":"名前(年齢)","skills":["スキル"],"unit_min":数値,"remote":true,"start":"稼働開始","location":"都道府県","source":"所属企業","desc":"経歴・実績の説明文"}]}\n\n'
+    + '案件判断：案件名・必須スキル・単価・配信番号があれば案件。要員判断：氏名・スキル・希望単価があれば要員。unit_max不明なら70。unit_min不明なら60。remoteは常駐系ならfalse。\n\n'
+    + '【重要】skillsは技術キーワードのみを短い単語で列挙してください（例："React","AWS","PM"）。各要素は必ず20文字以内にしてください。\n'
+    + '【重要】【概要】【工程】【期間】【必須】【尚可】【人数】【面談】【精算】【備考】などの説明ブロックはskillsに入れず、元の文章のまま"desc"フィールドにまとめて入れてください（改行はそのまま保持してOKです）。該当する説明文が全くない場合はdescは空文字にしてください。\n'
+    + '【重要】案件名が明記されていない場合は、本文の内容から「〇〇開発」のような簡潔な仮の案件名を推測してつけてください（"案件名不明"のような空欄的な名前にはしないでください）。\n\nテキスト:\n' + text;
 
   callClaude(prompt).then(function(raw) {
     var cleaned = raw; while(cleaned.indexOf('\x60\x60\x60') >= 0) { cleaned = cleaned.replace('\x60\x60\x60json','').replace('\x60\x60\x60',''); } cleaned = cleaned.trim(); var parsed = JSON.parse(cleaned);
@@ -761,7 +806,9 @@ function parseAll() {
         ph += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + pp.unit + '</strong></span><span>勤務: <strong>' + pp.remote + (pp.location?'／'+pp.location:'') + '</strong></span><span>稼働: <strong>' + pp.start + '</strong></span></div>';
         ph += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
         ph += '<input type="text" id="pp' + i + '" value="' + (pp.source||'') + '" placeholder="例：フリースタイル" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc + ';border-radius:6px;font-size:13px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
-        ph += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + pt + '</div></div>';
+        ph += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + pt + '</div>';
+        if (pp.desc) ph += '<div style="font-size:11px;color:#0F9D6E;margin-top:6px">✓ 概要文を抽出しました（' + pp.desc.length + '文字）</div>';
+        ph += '</div>';
       }
       ph += '</div>';
     }
@@ -777,7 +824,9 @@ function parseAll() {
         sh += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + ps.unit_min + '万〜</strong></span><span>リモート: <strong>' + (ps.remote?'希望':'常駐可') + '</strong></span><span>稼働: <strong>' + ps.start + '</strong></span></div>';
         sh += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
         sh += '<input type="text" id="ps' + j + '" value="' + (ps.source||'') + '" placeholder="例：ZINZAI" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc2 + ';border-radius:6px;font-size:13px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
-        sh += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + st2 + '</div></div>';
+        sh += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + st2 + '</div>';
+        if (ps.desc) sh += '<div style="font-size:11px;color:#7C3AED;margin-top:6px">✓ 概要文を抽出しました（' + ps.desc.length + '文字）</div>';
+        sh += '</div>';
       }
       sh += '</div>';
     }
@@ -817,14 +866,18 @@ function confirmAdd() {
     if (pi >= _pendP.length) { addNextS(0); return; }
     var item = _pendP[pi];
     item.id = Math.max.apply(null, [0].concat(PROJECTS.map(function(x){return x.id;}))) + 1;
-    item.date = today; PROJECTS.push(item); addP++; pi++;
+    item.date = today;
+    item.skills = (item.skills || []).filter(function(sk) { return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN; });
+    PROJECTS.push(item); addP++; pi++;
     doSave('project', item, function(ok) { if(ok) savP++; addNextP(); });
   }
   function addNextS(si) {
     if (si >= _pendS.length) { done(); return; }
     var item = _pendS[si];
     item.id = Math.max.apply(null, [0].concat(STAFF.map(function(x){return x.id;}))) + 1;
-    item.date = today; STAFF.push(item); addS++; si++;
+    item.date = today;
+    item.skills = (item.skills || []).filter(function(sk) { return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN; });
+    STAFF.push(item); addS++; si++;
     doSave('staff', item, function(ok) { if(ok) savS++; addNextS(si); });
   }
   function done() {
