@@ -286,20 +286,41 @@ function getFresh(ds) {
   if (days <= 30) return {label: days + '日前', cls:'fw', days:days};
   return {label: days + '日前!', cls:'fo', days:days};
 }
+// ステータス(募集中/提案中/終了)は本来チーム全員で共有すべき情報のため、
+// 「PROJECTS/STAFF配列上のstatusフィールド（サーバーから読み込んだ値）」を正とする。
+// localStorageは、通信失敗時や旧データ（サーバー未反映分）向けの一時フォールバックとしてのみ使う。
 function getAllSt() { try { return JSON.parse(localStorage.getItem('sket_st') || '{}'); } catch(e) { return {}; } }
-function getSt(type, id) { var a = getAllSt(); return (a[type] && a[type][id]) || 'active'; }
-function setSt(type, id, val) { var a = getAllSt(); if (!a[type]) a[type] = {}; a[type][id] = val; localStorage.setItem('sket_st', JSON.stringify(a)); }
+function getLocalSt(type, id) { var a = getAllSt(); return (a[type] && a[type][id]) || null; }
+function setLocalSt(type, id, val) { var a = getAllSt(); if (!a[type]) a[type] = {}; a[type][id] = val; localStorage.setItem('sket_st', JSON.stringify(a)); }
+function findRec_(type, id) {
+  var list = type === 'project' ? PROJECTS : STAFF;
+  return (list || []).find(function(x) { return x.id === id; });
+}
+function getSt(type, id) {
+  var rec = findRec_(type, id);
+  if (rec && rec.status) return rec.status;
+  // サーバーにまだstatus列がない/未取得の場合はlocalStorageの値にフォールバック
+  return getLocalSt(type, id) || 'active';
+}
+function setSt(type, id, val) {
+  var rec = findRec_(type, id);
+  if (rec) rec.status = val;
+  setLocalSt(type, id, val); // 通信失敗時の保険としてローカルにも保持
+  saveStatus(type, id, val); // スプレッドシートに反映（失敗してもUIはブロックしない）
+}
+function saveStatus(type, id, val) {
+  if (!GAS_URL) return;
+  fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ type: 'status', target: type, id: id, status: val })
+  }).catch(function() {
+    // 通信失敗時：ローカルには保存済みなので画面上は反映されるが、他端末には伝わらない旨をコンソールに残す
+    console.warn('ステータスのサーバー保存に失敗しました（' + type + '#' + id + ' -> ' + val + '）。GAS側にtype=statusのハンドラが必要です。');
+  });
+}
 function stLbl(s) { return s === 'active' ? '募集中' : s === 'proposing' ? '提案中' : '終了'; }
 function stCls2(s) { return s === 'active' ? 'sa' : s === 'proposing' ? 'sp2' : 'sc3'; }
-function cycleSt(type, id, btn) {
-  var cur = getSt(type, id);
-  var next = cur === 'active' ? 'proposing' : cur === 'proposing' ? 'closed' : 'active';
-  setSt(type, id, next);
-  btn.textContent = stLbl(next);
-  btn.className = 'stbtn ' + stCls2(next);
-  var card = btn.closest('.card');
-  if (card) card.style.opacity = next === 'closed' ? '0.4' : '1';
-}
 
 var SAMPLE_P = [
   {id:1,name:'大規模ECサイト開発・保守',skills:['Java'],unit:'スキル見合い',unit_max:80,remote:'フルリモート',start:'随時',source:'フリースタイル',date:''},
@@ -382,7 +403,13 @@ var SKILL_ALIASES = {
   'pm':'プロジェクトマネージャー','プロジェクトマネジメント':'プロジェクトマネージャー','プロマネ':'プロジェクトマネージャー',
   'せいせいai':'生成ai','genai':'生成ai','generativeai':'生成ai',
   'githubactions':'githubactions','github':'github',
-  'postgres':'postgresql'
+  'postgres':'postgresql',
+  'html5':'html','css3':'css',
+  'mysql':'mysql','postgresql':'postgresql',
+  'objectivec':'objectivec','swift':'swift',
+  'aiエージェント':'aiエージェント','aiagent':'aiエージェント',
+  'llm':'llm','生成ai':'生成ai',
+  'requirementdefinition':'要件定義','要件定義':'要件定義'
 };
 function normSkill_(sk) {
   var k = String(sk || '').toLowerCase().replace(/[.\s\-_]/g, '');
@@ -393,10 +420,9 @@ function calcScore(s, p) {
   var hit = [], miss = [];
   (p.skills || []).forEach(function(ps) {
     var pn = normSkill_(ps);
-    var ok = (s.skills || []).some(function(ss) {
-      var sn = normSkill_(ss);
-      return sn === pn || sn.indexOf(pn) >= 0 || pn.indexOf(sn) >= 0;
-    });
+    // 完全一致のみ判定（正規化後）。部分文字列一致(indexOf)は"Java"と"JavaScript"のような
+    // 別技術同士を誤ヒットさせるため廃止。表記ゆれはSKILL_ALIASESで個別に吸収する。
+    var ok = (s.skills || []).some(function(ss) { return normSkill_(ss) === pn; });
     if (ok) hit.push(ps); else miss.push(ps);
   });
   var skillPts = (p.skills && p.skills.length) ? Math.round(hit.length / p.skills.length * 60) : 0;
@@ -445,7 +471,6 @@ function mkCard(r, i, sId, pId, isMatch) {
   h += '<div class="brow"><span class="blbl">単価</span><div class="bout"><div class="bin" style="width:' + (r.unitPts/25*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.unitPts + '/25</span></div>';
   h += '<div class="brow"><span class="blbl">働き方</span><div class="bout"><div class="bin" style="width:' + (r.workPts/15*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.workPts + '/15</span></div>';
   h += '<div class="sc-tags">' + htags + mtags + '</div>';
-  h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="' + stType + '" data-id="' + obj.id + '" onclick="event.stopPropagation();cycleStBtn(this)">' + stLbl(st) + '</button></div>';
   h += '<div class="sc-meta">' + meta + '</div>' + locWarn;
@@ -723,7 +748,8 @@ function genProposalMail(sId, pId) {
   var btn = document.getElementById('mailcopybtn');
   box.className = 'pr show'; box.textContent = '生成中...'; btn.style.display = 'none';
   var sc = calcScore(s, p);
-  var prompt = 'SES要員を案件に提案するメール文（件名含む）を作成してください。\n\n'
+  var prompt = 'あなたはSES業界で経験を積んだ営業担当者です。以下の要員情報・案件情報をもとに、'
+    + '案件担当者（発注元のBPまたはエンド企業の窓口）へ送る「要員提案メール」を、件名を含めて作成してください。\n\n'
     + '【要員情報】\n名前: ' + s.name + '\nスキル: ' + (s.skills||[]).join('、')
     + '\n希望単価: ' + s.unit_min + '万〜\n稼働開始: ' + s.start
     + '\nリモート: ' + (s.remote?'フルリモート希望':'常駐可')
@@ -734,7 +760,12 @@ function genProposalMail(sId, pId) {
     + '\n\n【マッチング結果】\n総合スコア: ' + sc.total + '点/100点'
     + '\n一致スキル: ' + (sc.hit.join('、')||'なし')
     + '\n不足スキル: ' + (sc.miss.join('、')||'なし')
-    + '\n\n送信元：株式会社SKET営業担当として自然なメール文を作成してください。件名は「件名：」から始めてください。';
+    + '\n\n【メール作成時の注意点】\n'
+    + '・実際のSES営業担当が送るような、簡潔で実務的な文面にしてください。「ぜひご検討いただけますと幸いです」のような同じ意味の言い回しを重ねる、過度にへりくだった表現は避けてください。\n'
+    + '・一致スキルには具体的に触れてください。不足スキルがある場合は隠さず、誇張せず一言だけ正直に触れてください（キャッチアップ意欲や類似経験があれば軽く補足する程度で構いません）。信頼関係を損なう誇大な売り込みはしないでください。\n'
+    + '・本文の最後に、「面談日程の調整」または「スキルシートの送付可否」など、相手に次のアクションを促す一文を必ず入れてください。\n'
+    + '・全体で300〜400字程度（件名を除く）に収めてください。\n'
+    + '・送信元は株式会社SKET営業担当です。件名は「件名：」から始め、本文は改行で区切ってください。';
   callClaude(prompt).then(function(text) {
     box.textContent = text; btn.style.display = 'inline-block'; btn.textContent = 'コピー';
   }).catch(function(e) { box.textContent = 'エラー: ' + e.message; });
@@ -755,10 +786,14 @@ function genBpLineMsg(sId, pId) {
   var box = document.getElementById('bplinepr');
   var btn = document.getElementById('linecopybtn');
   box.className = 'pr show'; box.textContent = '生成中...'; btn.style.display = 'none';
-  var prompt = 'BP（協力会社）にLINEで送るビジネス連絡文を作成してください。カジュアルすぎず、丁寧すぎない、社内チャットのような自然な文体で、150字程度。\n\n'
-    + '要員: ' + s.name + '（スキル: ' + (s.skills||[]).join('、') + '、希望単価' + s.unit_min + '万〜）\n'
-    + '案件: ' + p.name + '（単価' + p.unit + '、' + p.remote + '）\n'
-    + 'この要員をこの案件に提案したい旨を、BP担当者への確認連絡として書いてください。件名は不要、本文のみ。';
+  var prompt = 'あなたはSES業界の営業担当者です。以下の要員・案件情報をもとに、BP（協力会社）の担当者へLINEで送る、'
+    + '要員提案の確認連絡文を作成してください。\n\n'
+    + '要員: ' + s.name + '（スキル: ' + (s.skills||[]).join('、') + '、希望単価' + s.unit_min + '万〜、稼働開始: ' + s.start + '）\n'
+    + '案件: ' + p.name + '（単価' + p.unit + '、' + p.remote + (p.location?'／'+p.location:'') + '、稼働開始: ' + p.start + '）\n\n'
+    + '【文面作成時の注意点】\n'
+    + '・実際の営業担当がLINEで送るような、簡潔で率直な文体にしてください。絵文字や「お世話になっております」のような堅い定型挨拶は不要で、本題から入ってください。\n'
+    + '・「この要員を提案してよいか」「単価感（' + p.unit + '）で受け入れ可能か」「稼働開始時期（' + p.start + '）に問題ないか」のうち、この案件・要員の組み合わせで実務上確認すべき点を1〜2個具体的に問いかけてください。\n'
+    + '・全体で150〜200字程度に収めてください。件名は不要、本文のみを出力してください。';
   callClaude(prompt).then(function(text) {
     box.textContent = text; btn.style.display = 'inline-block'; btn.textContent = 'コピー';
   }).catch(function(e) { box.textContent = 'エラー: ' + e.message; });
@@ -850,7 +885,7 @@ function confirmAdd() {
   if (hasErr) { alert('BP名が未入力の項目があります。赤枠の欄を入力してください。'); return; }
 
   document.getElementById('allprev').style.display = 'none';
-  var rs = document.getElementById('allpr'); rs.className = 'pr show'; rs.textContent = 'DBに追加中...';
+  var rs = document.getElementById('allpr'); rs.className = 'pr show'; rs.textContent = '最新データを確認中...';
   var today = new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit'});
   var addP=0, addS=0, savP=0, savS=0;
 
@@ -861,11 +896,25 @@ function confirmAdd() {
     } else { cb(false); }
   };
 
+  // ID重複対策：追加処理の直前にサーバーの最新データを取得し、他の担当者が
+  // 直前に登録したレコードのIDも踏まえて最大IDを再計算する（完全な排他制御ではないが、
+  // タブを開いたまま長時間放置したケースでの衝突リスクを大きく減らせる）
+  var maxPId = Math.max.apply(null, [0].concat(PROJECTS.map(function(x){return x.id;})));
+  var maxSId = Math.max.apply(null, [0].concat(STAFF.map(function(x){return x.id;})));
+  function refreshMaxIds(cb) {
+    if (!GAS_URL) { cb(); return; }
+    fetch(GAS_URL + '?type=all').then(function(r){ return r.json(); }).then(function(d) {
+      (d.projects||[]).forEach(function(x){ if (x.id > maxPId) maxPId = x.id; });
+      (d.staff||[]).forEach(function(x){ if (x.id > maxSId) maxSId = x.id; });
+      cb();
+    }).catch(function(){ cb(); });
+  }
+
   var pi = 0;
   function addNextP() {
     if (pi >= _pendP.length) { addNextS(0); return; }
     var item = _pendP[pi];
-    item.id = Math.max.apply(null, [0].concat(PROJECTS.map(function(x){return x.id;}))) + 1;
+    maxPId += 1; item.id = maxPId;
     item.date = today;
     item.skills = (item.skills || []).filter(function(sk) { return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN; });
     PROJECTS.push(item); addP++; pi++;
@@ -874,7 +923,7 @@ function confirmAdd() {
   function addNextS(si) {
     if (si >= _pendS.length) { done(); return; }
     var item = _pendS[si];
-    item.id = Math.max.apply(null, [0].concat(STAFF.map(function(x){return x.id;}))) + 1;
+    maxSId += 1; item.id = maxSId;
     item.date = today;
     item.skills = (item.skills || []).filter(function(sk) { return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN; });
     STAFF.push(item); addS++; si++;
@@ -886,7 +935,8 @@ function confirmAdd() {
     rs.textContent = '追加完了！案件'+addP+'件・要員'+addS+'名をDBに追加しました\n' + msg;
     document.getElementById('allta').value = ''; _pendP = []; _pendS = [];
   }
-  addNextP();
+  rs.textContent = 'DBに追加中...';
+  refreshMaxIds(addNextP);
 }
 
 loadData();
