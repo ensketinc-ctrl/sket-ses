@@ -807,6 +807,28 @@ function clearPaste() {
 }
 
 function parseAll() {
+  // AIの応答テキストは、まれに文字列リテラル内に生の改行/タブ等の制御文字を含んで返ってくることがあり、
+  // そのままではJSON.parseが「Unterminated string in JSON」で失敗する。
+  // この関数はダブルクォート文字列の"中"だけを対象に、生の制御文字を正規のJSONエスケープに変換する。
+  function sanitizeJsonRaw_(str) {
+    var out = '', inStr = false, esc = false;
+    for (var i = 0; i < str.length; i++) {
+      var ch = str[i];
+      if (inStr) {
+        if (esc) { out += ch; esc = false; continue; }
+        if (ch === '\\') { out += ch; esc = true; continue; }
+        if (ch === '"') { inStr = false; out += ch; continue; }
+        if (ch === '\n') { out += '\\n'; continue; }
+        if (ch === '\r') { continue; }
+        if (ch === '\t') { out += '\\t'; continue; }
+        out += ch;
+      } else {
+        if (ch === '"') { inStr = true; }
+        out += ch;
+      }
+    }
+    return out;
+  }
   var text = document.getElementById('allta').value.trim();
   var rs = document.getElementById('allpr');
   var cnt = document.getElementById('allcnt');
@@ -819,11 +841,24 @@ function parseAll() {
     + '"staff":[{"name":"名前(年齢)","skills":["スキル"],"unit_min":数値,"remote":true,"start":"稼働開始","location":"都道府県","source":"所属企業","desc":"経歴・実績の説明文"}]}\n\n'
     + '案件判断：案件名・必須スキル・単価・配信番号があれば案件。要員判断：氏名・スキル・希望単価があれば要員。unit_max不明なら70。unit_min不明なら60。remoteは常駐系ならfalse。\n\n'
     + '【重要】skillsは技術キーワードのみを短い単語で列挙してください（例："React","AWS","PM"）。各要素は必ず20文字以内にしてください。\n'
-    + '【重要】【概要】【工程】【期間】【必須】【尚可】【人数】【面談】【精算】【備考】などの説明ブロックはskillsに入れず、元の文章のまま"desc"フィールドにまとめて入れてください（改行はそのまま保持してOKです）。該当する説明文が全くない場合はdescは空文字にしてください。\n'
+    + '【重要】【概要】【工程】【期間】【必須】【尚可】【人数】【面談】【精算】【備考】などの説明ブロックはskillsに入れず、元の文章のまま"desc"フィールドにまとめて入れてください（JSON文字列として不正にならないよう、改行は生の改行ではなく必ず\\nとしてエスケープしてください）。該当する説明文が全くない場合はdescは空文字にしてください。\n'
     + '【重要】案件名が明記されていない場合は、本文の内容から「〇〇開発」のような簡潔な仮の案件名を推測してつけてください（"案件名不明"のような空欄的な名前にはしないでください）。\n\nテキスト:\n' + text;
 
   callClaude(prompt).then(function(raw) {
-    var cleaned = raw; while(cleaned.indexOf('\x60\x60\x60') >= 0) { cleaned = cleaned.replace('\x60\x60\x60json','').replace('\x60\x60\x60',''); } cleaned = cleaned.trim(); var parsed = JSON.parse(cleaned);
+    var cleaned = raw; while(cleaned.indexOf('\x60\x60\x60') >= 0) { cleaned = cleaned.replace('\x60\x60\x60json','').replace('\x60\x60\x60',''); } cleaned = cleaned.trim();
+    var parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (e1) {
+      // AIが指示に反して文字列内に生の改行等を含めた場合の保険。
+      // JSON文字列リテラルの中だけを対象に、生の制御文字を\n等へエスケープしてから再パースする。
+      try {
+        parsed = JSON.parse(sanitizeJsonRaw_(cleaned));
+      } catch (e2) {
+        rs.textContent = 'AIの応答をJSONとして解釈できませんでした。テキストを短く分けて再度お試しください。\n(詳細: ' + e2.message + ')';
+        return;
+      }
+    }
     _pendP = parsed.projects || [];
     _pendS = parsed.staff    || [];
     var total = _pendP.length + _pendS.length;
