@@ -43,7 +43,11 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .sc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
 .stag{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500}
 .stag.hit{background:#E8F7F2;color:#0F9D6E}
+.stag.part{background:#FFFBEB;color:#D97706}
 .stag.miss{background:#F7F8FA;color:#6B7280;border:1px solid #E4E6EA}
+.srcb{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:.3px}
+.srcb.ai{background:#EEF2FF;color:#4338CA}
+.srcb.rule{background:#F3F4F6;color:#6B7280}
 .sc-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA}
 .sc-meta span{font-size:12px;color:#6B7280}.sc-meta strong{color:#1A1D23}
 .sc-act{margin-top:10px;display:flex;gap:6px}
@@ -101,6 +105,7 @@ textarea:focus{outline:none;border-color:#2563EB}
 .dtags{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px}
 .dtag{font-size:12px;padding:3px 9px;border-radius:20px;font-weight:500}
 .dtag.hit{background:#E8F7F2;color:#0F9D6E}
+.dtag.part{background:#FFFBEB;color:#D97706}
 .dtag.miss{background:#FEF2F2;color:#DC2626}
 .dtag.neu{background:#F5F3FF;color:#7C3AED}
 .ssum{display:flex;gap:10px;background:#F7F8FA;border-radius:8px;padding:12px;margin-bottom:14px}
@@ -135,14 +140,36 @@ textarea:focus{outline:none;border-color:#2563EB}
 </div>
 
 <div class="tabs">
-  <button class="tab on" onclick="doTab(this)" data-tab="match">マッチング</button>
+  <button class="tab on" onclick="doTab(this)" data-tab="hot">🔥 ホットマッチ</button>
+  <button class="tab" onclick="doTab(this)" data-tab="match">マッチング</button>
   <button class="tab" onclick="doTab(this)" data-tab="rev">逆引き検索</button>
   <button class="tab" onclick="doTab(this)" data-tab="projs">案件一覧</button>
   <button class="tab" onclick="doTab(this)" data-tab="staffs">要員一覧</button>
   <button class="tab" onclick="doTab(this)" data-tab="paste">情報追加</button>
 </div>
 
-<div id="tab-match" class="sec on">
+<div id="tab-hot" class="sec on">
+  <div class="lbar">
+    <span style="font-size:12px;color:#6B7280;white-space:nowrap;align-self:center">マッチ度</span>
+    <select class="si" style="width:110px" onchange="hotState.min=parseInt(this.value);renderHot()">
+      <option value="75">75点以上</option>
+      <option value="65" selected>65点以上</option>
+      <option value="55">55点以上</option>
+      <option value="45">45点以上</option>
+    </select>
+    <input class="si" style="flex:1;min-width:120px" placeholder="案件名・要員名・スキルで絞り込み..." oninput="hotState.q=this.value;renderHot()">
+    <select class="si" style="width:130px" onchange="hotState.src=this.value;renderHot()">
+      <option value="">スコア:全て</option><option value="ai">AI採点済のみ</option><option value="rule">未採点(ルール)のみ</option>
+    </select>
+    <select class="si" style="width:110px" onchange="hotState.limit=parseInt(this.value);renderHot()">
+      <option value="30">上位30件</option><option value="60" selected>上位60件</option><option value="150">上位150件</option><option value="9999">全件</option>
+    </select>
+  </div>
+  <div style="padding:8px 14px;font-size:12px;color:#6B7280;background:#fff;border-bottom:1px solid #E4E6EA" id="hotinfo"></div>
+  <div class="lgrid" id="hotgrid"><div class="empty"><span class="spin"></span>計算中</div></div>
+</div>
+
+<div id="tab-match" class="sec">
   <div class="two-pane">
     <div class="lpane">
       <div class="ph">要員を選択</div>
@@ -259,6 +286,7 @@ textarea:focus{outline:none;border-color:#2563EB}
 // ★ここをGASデプロイ後のウェブアプリURLに書き換えてください★
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbwxigoqSq5dMELhMCwn3ctcIedIGAis3ymu1lY2SI_qSxWD9PLKjf0hMmYqqKZfXnYmCw/exec';
 var PROJECTS = [], STAFF = [];
+var SCORES = {};   // AI採点結果（key: "案件ID_要員ID" → {s:スコア, r:理由}）深夜バッチが生成
 var _pendP = [], _pendS = [];
 
 function callClaude(prompt) {
@@ -353,10 +381,25 @@ var SAMPLE_S = [
 
 // AIによる抽出ミスで、スキル名の代わりに長文（概要文など）がskillsに混入した場合の防御フィルタ
 // 20文字を超えるものはスキル名としてあり得ないため、表示・スコア計算から除外する
-var MAX_SKILL_LEN = 20;
+var MAX_SKILL_LEN = 25;
+function cleanSkillArr_(a) {
+  return (a || []).filter(function(sk) {
+    return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN;
+  });
+}
 function sanitizeSkills(list) {
   (list || []).forEach(function(x) {
-    x.skills = (x.skills || []).filter(function(sk) { return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN; });
+    x.skills = cleanSkillArr_(x.skills);
+    x.skills_pref = cleanSkillArr_(x.skills_pref);
+    // ★型ガード：unit_max/unit_min が文字列だと diff が NaN になり単価点が全員0になる
+    if (x.unit_max !== undefined && x.unit_max !== null) {
+      var um = Number(x.unit_max);
+      x.unit_max = (isFinite(um) && um > 0) ? um : null;
+    }
+    if (x.unit_min !== undefined) {
+      var un = Number(x.unit_min);
+      x.unit_min = (isFinite(un) && un > 0) ? un : 60;
+    }
   });
   return list;
 }
@@ -365,13 +408,15 @@ function loadData() {
   var done = function() {
     updateStats();
     applyMatchStaffFilter(); applyRevProjFilter(); applyPFilter(); applySFilter();
+    renderHot();
   };
   if (GAS_URL) {
     fetch(GAS_URL + '?type=all').then(function(r) { return r.json(); }).then(function(d) {
       PROJECTS = sanitizeSkills((d.projects && d.projects.length) ? d.projects : SAMPLE_P);
       STAFF    = sanitizeSkills((d.staff    && d.staff.length)    ? d.staff    : SAMPLE_S);
+      SCORES   = d.scores || {};
       done();
-    }).catch(function() { PROJECTS = sanitizeSkills(SAMPLE_P); STAFF = sanitizeSkills(SAMPLE_S); done(); });
+    }).catch(function() { PROJECTS = sanitizeSkills(SAMPLE_P); STAFF = sanitizeSkills(SAMPLE_S); SCORES = {}; done(); });
   } else { PROJECTS = sanitizeSkills(SAMPLE_P); STAFF = sanitizeSkills(SAMPLE_S); done(); }
 }
 function updateStats() {
@@ -381,68 +426,206 @@ function updateStats() {
   document.getElementById('su').textContent = n.getHours() + ':' + String(n.getMinutes()).padStart(2,'0');
 }
 
-// スキル表記ゆれの正規化辞書（左側どの表記でも右側の代表名に統一して比較する）
+// ===========================================================================
+// スキル表記ゆれの正規化辞書
+// ★注意：normSkill_ は「. 空白 - _」を除去してから辞書を引くため、
+//   キー側にそれらの文字を入れると永久に到達しない（旧版のバグ）。
+//   値側にドットを入れるのも禁止（'.NET' は 'net' としか一致しない）。
+// ===========================================================================
 var SKILL_ALIASES = {
-  'reactjs':'react','react.js':'react',
-  'vuejs':'vue','vue.js':'vue',
-  'nextjs':'next','next.js':'next',
-  'nuxtjs':'nuxt','nuxt.js':'nuxt',
-  'nodejs':'node','node.js':'node',
-  'aws':'aws','amazonwebservices':'aws',
-  'gcp':'gcp','googlecloud':'gcp','googlecloudplatform':'gcp',
-  'azure':'azure','microsoftazure':'azure',
-  'ts':'typescript',
-  'js':'javascript',
-  'rubyonrails':'rails','ror':'rails',
-  'springboot':'spring','spring boot':'spring',
+  'reactjs':'react','vuejs':'vue','nextjs':'next','nuxtjs':'nuxt','nodejs':'node',
+  'amazonwebservices':'aws','googlecloud':'gcp','googlecloudplatform':'gcp','microsoftazure':'azure',
+  'ts':'typescript','js':'javascript',
+  'rubyonrails':'rails','ror':'rails','ruby':'ruby',
+  'springboot':'spring','spring':'spring',
   'csharp':'c#','c♯':'c#',
-  'dotnet':'.net','.netcore':'.net',
-  'golang':'go',
-  'k8s':'kubernetes',
-  'cicd':'ci/cd','ci・cd':'ci/cd',
-  'pm':'プロジェクトマネージャー','プロジェクトマネジメント':'プロジェクトマネージャー','プロマネ':'プロジェクトマネージャー',
-  'せいせいai':'生成ai','genai':'生成ai','generativeai':'生成ai',
-  'githubactions':'githubactions','github':'github',
-  'postgres':'postgresql',
-  'html5':'html','css3':'css',
-  'mysql':'mysql','postgresql':'postgresql',
-  'objectivec':'objectivec','swift':'swift',
-  'aiエージェント':'aiエージェント','aiagent':'aiエージェント',
-  'llm':'llm','生成ai':'生成ai',
-  'requirementdefinition':'要件定義','要件定義':'要件定義'
+  'dotnet':'net','netcore':'net','aspnet':'net','net':'net',   // ★.NET系を net に統一
+  'golang':'go','k8s':'kubernetes','cicd':'ci/cd','ci・cd':'ci/cd',
+  'pm':'pm','プロジェクトマネージャー':'pm','プロジェクトマネジメント':'pm','プロマネ':'pm','pdm':'pm','pmm':'pm',
+  'pmo':'pmo','pl':'pl',
+  'postgres':'postgresql','html5':'html','css3':'css','sass':'css','scss':'css',
+  'objectivec':'objectivec',
+  'genai':'生成ai','generativeai':'生成ai','せいせいai':'生成ai',
+  'aiagent':'aiエージェント',
+  'requirementdefinition':'要件定義','上流':'要件定義','上流工程':'要件定義','基本設計':'設計','詳細設計':'設計'
 };
 function normSkill_(sk) {
   var k = String(sk || '').toLowerCase().replace(/[.\s\-_]/g, '');
   return SKILL_ALIASES[k] || k;
 }
 
-function calcScore(s, p) {
-  var hit = [], miss = [];
-  (p.skills || []).forEach(function(ps) {
-    var pn = normSkill_(ps);
-    // 完全一致のみ判定（正規化後）。部分文字列一致(indexOf)は"Java"と"JavaScript"のような
-    // 別技術同士を誤ヒットさせるため廃止。表記ゆれはSKILL_ALIASESで個別に吸収する。
-    var ok = (s.skills || []).some(function(ss) { return normSkill_(ss) === pn; });
-    if (ok) hit.push(ps); else miss.push(ps);
-  });
-  var skillPts = (p.skills && p.skills.length) ? Math.round(hit.length / p.skills.length * 60) : 0;
-  var diff = (p.unit_max || 70) - (s.unit_min || 60);
-  var unitPts = diff >= 0 ? 25 : diff >= -10 ? 15 : diff >= -20 ? 5 : 0;
+// ===========================================================================
+// スキルのカテゴリと重み
+//  weight … 案件の必須スキルとしての「重さ」。中核技術ほど重く、
+//           補助ツール・工程用語は軽くする（実データでは「アジャイル」「GitLab」
+//           「Figma」等が分母を食い、スキル点の天井を潰していた）
+//  cat    … 同カテゴリ内なら部分点(0.4)を与えるためのグループ
+// ===========================================================================
+var SKILL_CAT = {
+  // ---- 生成AI（実データで最も分断されていた領域） ----
+  'ai':'AI','生成ai':'AI','llm':'AI','rag':'AI','langchain':'AI','aiエージェント':'AI',
+  'ai駆動開発':'AI','claudecode':'AI','githubcopilot':'AI','機械学習':'AI','dify':'AI',
+  'ml':'AI','mlops':'AI','openai':'AI','プロンプトエンジニアリング':'AI','aiナレッジ':'AI','ai導入':'AI',
+  // ---- フロントエンド ----
+  'react':'FRONT','next':'FRONT','vue':'FRONT','nuxt':'FRONT','angular':'FRONT','svelte':'FRONT',
+  'typescript':'FRONT','javascript':'FRONT','html':'FRONT','css':'FRONT','tailwindcss':'FRONT',
+  'reactnative':'FRONT','flutter':'FRONT','reactrouter':'FRONT',
+  // ---- バックエンド言語/FW ----
+  'java':'BACK','spring':'BACK','kotlin':'BACK','php':'BACK','laravel':'BACK','cakephp':'BACK',
+  'fuelphp':'BACK','python':'BACK','django':'BACK','flask':'BACK','fastapi':'BACK','go':'BACK',
+  'ruby':'BACK','rails':'BACK','c#':'BACK','net':'BACK','node':'BACK','nestjs':'BACK','express':'BACK',
+  'c':'BACK','c++':'BACK','c言語':'BACK','cobol':'BACK','vb':'BACK','scala':'BACK','rust':'BACK',
+  // ---- クラウド/インフラ ----
+  'aws':'CLOUD','gcp':'CLOUD','azure':'CLOUD','docker':'CLOUD','kubernetes':'CLOUD','terraform':'CLOUD',
+  'linux':'CLOUD','ecs':'CLOUD','eks':'CLOUD','fargate':'CLOUD','lambda':'CLOUD','s3':'CLOUD',
+  'ec2':'CLOUD','aurora':'CLOUD','elasticache':'CLOUD','ansible':'CLOUD','windows':'CLOUD','ネットワーク設計':'CLOUD',
+  // ---- DB ----
+  'sql':'DB','mysql':'DB','postgresql':'DB','oracle':'DB','sqlserver':'DB','mongodb':'DB',
+  'redis':'DB','dynamodb':'DB','snowflake':'DB','bigquery':'DB','athena':'DB',
+  // ---- 上流/PM ----
+  'pm':'PM','pmo':'PM','pl':'PM','要件定義':'PM','設計':'PM','itコンサル':'PM','ディレクション':'PM',
+  'ベンダーコントロール':'PM','プロダクトマネジメント':'PM','dx推進':'PM',
+  // ---- ツール・プロセス（軽い） ----
+  'git':'TOOL','github':'TOOL','gitlab':'TOOL','bitbucket':'TOOL','jenkins':'TOOL','ci/cd':'TOOL',
+  'jira':'TOOL','figma':'TOOL','photoshop':'TOOL','illustrator':'TOOL','アジャイル':'TOOL','scrum':'TOOL',
+  'テスト':'TOOL','保守運用':'TOOL','tableau':'TOOL','looker':'TOOL','bi':'TOOL','ga4':'TOOL','word':'TOOL','excel':'TOOL'
+};
+// カテゴリ別の重み（案件の必須スキルとしての重要度）
+var CAT_WEIGHT = { 'AI':3, 'FRONT':3, 'BACK':3, 'CLOUD':2, 'DB':2, 'PM':2, 'TOOL':1 };
+var DEFAULT_WEIGHT = 2; // 辞書にない語（＝独自語・ロングテール）
 
-  var rm = p.remote || '';
-  var isRm = /リモート|在宅|テレワーク/.test(rm);
-  var workPts, locNote;
-  if (isRm) {
-    workPts = s.remote ? 15 : 10;
-    locNote = null;
-  } else {
-    // 常駐・ハイブリッド等：勤務地(都道府県)の一致で判定する
-    if (!p.location || !s.location) { workPts = 8; locNote = '勤務地情報なし'; }
-    else if (p.location === s.location) { workPts = 15; locNote = null; }
-    else { workPts = 2; locNote = p.location + '⇔' + s.location + '（勤務地不一致）'; }
-  }
-  return {total: skillPts+unitPts+workPts, skillPts:skillPts, unitPts:unitPts, workPts:workPts, hit:hit, miss:miss, locNote:locNote};
+function skillCat_(k) { return SKILL_CAT[k] || null; }
+function skillWeight_(k) {
+  var c = skillCat_(k);
+  return c ? (CAT_WEIGHT[c] || DEFAULT_WEIGHT) : DEFAULT_WEIGHT;
 }
+
+// 稼働時期を「今月からの月数」に変換（即日/随時 = 0、不明 = null）
+function startMonth_(str) {
+  var s = String(str || '');
+  if (!s) return null;
+  if (/即日|随時|すぐ|即時/.test(s)) return 0;
+  var now = new Date();
+  var m = s.match(/(\d{4})\s*[年\/\-]\s*(\d{1,2})/);
+  if (m) {
+    return (parseInt(m[1],10) - now.getFullYear()) * 12 + (parseInt(m[2],10) - 1 - now.getMonth());
+  }
+  var m2 = s.match(/(\d{1,2})\s*月/);
+  if (m2) {
+    var d = parseInt(m2[1],10) - 1 - now.getMonth();
+    return d < -6 ? d + 12 : d; // 年跨ぎ補正
+  }
+  return null;
+}
+
+// ===========================================================================
+// スコア設計（合計100点）
+//   スキル 50 / 単価 20 / 稼働時期 15 / 働き方 15
+//   ・必須スキルは重み付き。完全一致=1.0、同カテゴリ一致=0.4の部分点
+//   ・尚可スキルは加点のみ（分母に入れない）
+//   ・必須スキル一致ゼロの場合は総合25点で頭打ち（＝下駄の撤廃）
+// ===========================================================================
+function calcScore(s, p) {
+  var sset = {}, scats = {};
+  (s.skills || []).forEach(function(x) {
+    var k = normSkill_(x); sset[k] = true;
+    var c = skillCat_(k); if (c) scats[c] = true;
+  });
+
+  var hit = [], part = [], miss = [];
+  var gotW = 0, allW = 0;
+  (p.skills || []).forEach(function(ps) {
+    var k = normSkill_(ps);
+    var w = skillWeight_(k);
+    allW += w;
+    if (sset[k]) { hit.push(ps); gotW += w; }
+    else if (skillCat_(k) && scats[skillCat_(k)]) { part.push(ps); gotW += w * 0.4; }
+    else { miss.push(ps); }
+  });
+  var skillPts = allW > 0 ? Math.round(gotW / allW * 50) : 0;
+
+  // 尚可スキル：加点のみ（最大5点）
+  var prefHit = (p.skills_pref || []).filter(function(x) { return sset[normSkill_(x)]; });
+  var prefPts = (p.skills_pref && p.skills_pref.length)
+    ? Math.min(5, Math.round(prefHit.length / p.skills_pref.length * 5)) : 0;
+  skillPts = Math.min(50, skillPts + prefPts);
+
+  // ---- 単価（20点）----
+  var umax = (typeof p.unit_max === 'number' && p.unit_max > 0) ? p.unit_max : null;
+  var umin = (typeof s.unit_min === 'number' && s.unit_min > 0) ? s.unit_min : 60;
+  var unitPts, unitNote = null;
+  if (umax === null) { unitPts = 12; unitNote = '案件単価が不明（スキル見合い等）'; }
+  else {
+    var diff = umax - umin;
+    if (diff >= 15)      unitPts = 20;              // 粗利十分
+    else if (diff >= 0)  unitPts = 16;              // 収まる
+    else if (diff >= -5) { unitPts = 8;  unitNote = '要交渉（' + (-diff) + '万オーバー）'; }
+    else if (diff >= -15){ unitPts = 3;  unitNote = '単価オーバー（' + (-diff) + '万）'; }
+    else                 { unitPts = 0;  unitNote = '単価が大きくオーバー（' + (-diff) + '万）'; }
+  }
+
+  // ---- 稼働時期（15点）----
+  var pm = startMonth_(p.start), sm = startMonth_(s.start);
+  var timePts, timeNote = null;
+  if (pm === null || sm === null) { timePts = 8; timeNote = '稼働時期が不明'; }
+  else {
+    var lag = sm - pm; // 要員が案件開始より何ヶ月遅いか
+    if (lag <= 0)      timePts = 15;
+    else if (lag === 1){ timePts = 10; timeNote = '要員の稼働が1ヶ月遅い'; }
+    else if (lag === 2){ timePts = 4;  timeNote = '要員の稼働が2ヶ月遅い'; }
+    else               { timePts = 0;  timeNote = '稼働時期が合わない（' + lag + 'ヶ月遅れ）'; }
+  }
+
+  // ---- 働き方（15点）----
+  // s.work_pref: 'remote'(リモート希望) / 'flex'(出社も可) / 'onsite'(常駐希望) / 'unknown'(記載なし=柔軟扱い)
+  var mode = p.remote || '要確認';
+  var pref = s.work_pref || (s.remote ? 'remote' : 'unknown');
+  var isOnsite = (mode === '常駐');
+  var isHybrid = (mode === 'ハイブリッド');
+  var workPts, locNote = null;
+
+  function byLocation_() {
+    if (!p.location || !s.location) { locNote = '勤務地情報なし'; return 8; }
+    if (p.location === s.location) return 15;
+    locNote = p.location + '⇔' + s.location + '（勤務地不一致）';
+    return 2;
+  }
+  if (isOnsite) {
+    if (pref === 'remote') { workPts = 0; locNote = '常駐案件 × リモート希望の要員'; }
+    else workPts = byLocation_();
+  } else if (isHybrid) {
+    if (pref === 'remote') { workPts = 6; locNote = 'ハイブリッド案件 × リモート希望の要員（出社頻度の確認要）'; }
+    else workPts = byLocation_();
+  } else {
+    // フルリモート案件：常駐希望の要員はやや減点
+    workPts = (pref === 'onsite') ? 10 : 15;
+  }
+
+  var total = skillPts + unitPts + timePts + workPts;
+  // 必須スキルが1つも当たっていない場合は上限25点（＝下駄の撤廃）
+  if (skillPts === 0 && (p.skills || []).length > 0) total = Math.min(total, 25);
+
+  return {
+    total: total, skillPts: skillPts, unitPts: unitPts, timePts: timePts, workPts: workPts,
+    hit: hit, part: part, miss: miss, prefHit: prefHit,
+    locNote: locNote, unitNote: unitNote, timeNote: timeNote,
+    src: 'rule'
+  };
+}
+
+// AI採点済みスコアがあればそれを優先し、内訳はルールベースのものを流用する
+function getScore(s, p) {
+  var r = calcScore(s, p);
+  var ai = SCORES[p.id + '_' + s.id];
+  if (ai && typeof ai.s === 'number' && ai.s > 0) {
+    r.ruleTotal = r.total;
+    r.total = ai.s;
+    r.reason = ai.r || '';
+    r.src = 'ai';
+  }
+  return r;
+}
+function scColor_(t) { return t >= 70 ? '#0F9D6E' : t >= 50 ? '#D97706' : '#6B7280'; }
 
 function doTab(el) { var name = el.getAttribute("data-tab");
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('on'); });
@@ -451,29 +634,43 @@ function doTab(el) { var name = el.getAttribute("data-tab");
   document.getElementById('tab-' + name).classList.add('on');
 }
 
+function srcBadge_(r) {
+  return r.src === 'ai'
+    ? '<span class="srcb ai" title="' + (r.reason||'') + '">AI採点</span>'
+    : '<span class="srcb rule">ルール（AI未採点）</span>';
+}
+function bar_(label, val, max, col) {
+  return '<div class="brow"><span class="blbl">' + label + '</span><div class="bout"><div class="bin" style="width:'
+    + (val/max*100) + '%;background:' + col + '"></div></div><span class="bval">' + val + '/' + max + '</span></div>';
+}
 function mkCard(r, i, sId, pId, isMatch) {
   var obj  = isMatch ? r.p : r.s;
-  var col  = r.total >= 70 ? '#0F9D6E' : r.total >= 45 ? '#D97706' : '#6B7280';
+  var col  = scColor_(r.total);
   var rc   = i===0?'r1':i===1?'r2':i===2?'r3':'';
   var fr   = getFresh(isMatch ? (r.p.date||'') : (r.s.date||''));
   var st   = getSt(isMatch ? 'project' : 'staff', obj.id);
   var stType = isMatch ? 'project' : 'staff';
-  var htags = r.hit.map(function(sk) { return '<span class="stag hit">v ' + sk + '</span>'; }).join('');
-  var mtags = r.miss.map(function(sk) { return '<span class="stag miss">x ' + sk + '</span>'; }).join('');
+  var htags = r.hit.map(function(sk) { return '<span class="stag hit">✓ ' + sk + '</span>'; }).join('');
+  var ptags = (r.part||[]).map(function(sk) { return '<span class="stag part">△ ' + sk + '</span>'; }).join('');
+  var mtags = r.miss.map(function(sk) { return '<span class="stag miss">✕ ' + sk + '</span>'; }).join('');
   var meta = isMatch
     ? '<span>単価: <strong>' + obj.unit + '</strong></span><span>勤務: <strong>' + obj.remote + (obj.location?'／'+obj.location:'') + '</strong></span><span>稼働: <strong>' + obj.start + '</strong></span><span>元: <strong>' + obj.source + '</strong></span>'
     : '<span>単価: <strong>' + obj.unit_min + '万〜</strong></span><span>リモート: <strong>' + (obj.remote?'希望':'常駐可') + '</strong></span><span>稼働: <strong>' + obj.start + '</strong></span><span>BP: <strong>' + obj.source + '</strong></span>';
-  var locWarn = r.locNote ? '<div style="font-size:11px;color:#D97706;margin-top:4px">⚠ ' + r.locNote + '</div>' : '';
+  var notes = [r.locNote, r.unitNote, r.timeNote].filter(Boolean)
+    .map(function(n) { return '<div style="font-size:11px;color:#D97706;margin-top:3px">⚠ ' + n + '</div>'; }).join('');
+
   var h = '<div class="sc" style="' + (st==='closed'?'opacity:0.4':'') + '" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">';
   h += '<div class="sc-top"><div class="sc-rank ' + rc + '">' + (i+1) + '</div><div class="sc-name">' + obj.name + '</div>';
   h += '<div class="sc-score" style="color:' + col + '">' + r.total + '<span style="font-size:12px;font-weight:400">点</span></div></div>';
-  h += '<div class="brow"><span class="blbl">スキル</span><div class="bout"><div class="bin" style="width:' + (r.skillPts/60*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.skillPts + '/60</span></div>';
-  h += '<div class="brow"><span class="blbl">単価</span><div class="bout"><div class="bin" style="width:' + (r.unitPts/25*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.unitPts + '/25</span></div>';
-  h += '<div class="brow"><span class="blbl">働き方</span><div class="bout"><div class="bin" style="width:' + (r.workPts/15*100) + '%;background:' + col + '"></div></div><span class="bval">' + r.workPts + '/15</span></div>';
-  h += '<div class="sc-tags">' + htags + mtags + '</div>';
+  h += '<div style="margin-bottom:6px">' + srcBadge_(r) + (r.src==='ai' && r.reason ? '<span style="font-size:11px;color:#6B7280;margin-left:6px">' + r.reason + '</span>' : '') + '</div>';
+  h += bar_('スキル', r.skillPts, 50, col);
+  h += bar_('単価',   r.unitPts,  20, col);
+  h += bar_('時期',   r.timePts,  15, col);
+  h += bar_('働き方', r.workPts,  15, col);
+  h += '<div class="sc-tags">' + htags + ptags + mtags + '</div>';
   h += '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="' + stType + '" data-id="' + obj.id + '" onclick="event.stopPropagation();cycleStBtn(this)">' + stLbl(st) + '</button></div>';
-  h += '<div class="sc-meta">' + meta + '</div>' + locWarn;
+  h += '<div class="sc-meta">' + meta + '</div>' + notes;
   if (obj.desc) {
     var descElId = (isMatch ? 'mcdesc-p-' : 'mcdesc-s-') + obj.id + '-' + i;
     h += '<div onclick="event.stopPropagation()"><button class="desctoggle" onclick="toggleDesc(\'' + descElId + '\',this)">▼ 概要を見る</button>';
@@ -482,6 +679,65 @@ function mkCard(r, i, sId, pId, isMatch) {
   h += '<div class="sc-act" onclick="event.stopPropagation()"><button class="btn btn-d" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">詳細を見る</button></div>';
   h += '</div>';
   return h;
+}
+
+// ===========================================================================
+// 🔥 ホットマッチ：全案件 × 全要員を横断し、スコアの高い組み合わせだけを抽出
+// ===========================================================================
+var hotState = { min: 65, q: '', src: '', limit: 60 };
+
+function renderHot() {
+  var grid = document.getElementById('hotgrid');
+  var info = document.getElementById('hotinfo');
+  if (!grid) return;
+  if (!PROJECTS.length || !STAFF.length) { grid.innerHTML = '<div class="empty">データがありません</div>'; return; }
+
+  var ps = PROJECTS.filter(function(p) { return getSt('project', p.id) !== 'closed'; });
+  var ss = STAFF.filter(function(s) { return getSt('staff', s.id) !== 'closed'; });
+
+  var all = [], aiCnt = 0;
+  ps.forEach(function(p) {
+    ss.forEach(function(s) {
+      var r = getScore(s, p);
+      if (r.src === 'ai') aiCnt++;
+      if (r.total < hotState.min) return;
+      if (hotState.src && r.src !== hotState.src) return;
+      if (hotState.q) {
+        var q = hotState.q.toLowerCase();
+        var hay = (p.name + ' ' + s.name + ' ' + (p.skills||[]).join(' ') + ' ' + (s.skills||[]).join(' ')).toLowerCase();
+        if (hay.indexOf(q) < 0) return;
+      }
+      all.push({ p: p, s: s, r: r });
+    });
+  });
+  all.sort(function(a, b) { return b.r.total - a.r.total; });
+  var total = ps.length * ss.length;
+  info.innerHTML = '有効案件 <strong>' + ps.length + '</strong>件 × 有効要員 <strong>' + ss.length + '</strong>名 = '
+    + total.toLocaleString() + 'ペアを評価 ／ <strong>' + hotState.min + '点以上：' + all.length + '件</strong>'
+    + ' ／ AI採点済 ' + aiCnt.toLocaleString() + 'ペア（深夜バッチで自動更新）';
+
+  var shown = all.slice(0, hotState.limit);
+  if (!shown.length) { grid.innerHTML = '<div class="empty">' + hotState.min + '点以上の組み合わせはありません。閾値を下げてください。</div>'; return; }
+
+  grid.innerHTML = shown.map(function(x, i) {
+    var r = x.r, col = scColor_(r.total);
+    var tags = r.hit.slice(0, 6).map(function(sk) { return '<span class="stag hit">✓ ' + sk + '</span>'; }).join('')
+             + (r.part||[]).slice(0, 3).map(function(sk) { return '<span class="stag part">△ ' + sk + '</span>'; }).join('');
+    var h = '<div class="card" style="cursor:pointer;border-left:4px solid ' + col + '" onclick="openDet(' + x.s.id + ',' + x.p.id + ',true)">';
+    h += '<div class="ct"><div class="cn" style="font-size:12px;color:#6B7280;margin-bottom:2px">#' + (i+1) + '</div>';
+    h += '<div style="font-size:22px;font-weight:800;color:' + col + '">' + r.total + '<span style="font-size:11px;font-weight:400">点</span></div></div>';
+    h += '<div style="font-size:13px;font-weight:700;line-height:1.4;margin-bottom:2px">' + x.p.name + '</div>';
+    h += '<div style="font-size:12px;color:#6B7280;margin-bottom:6px">⇔ <strong style="color:#7C3AED">' + x.s.name + '</strong>（' + x.s.source + '）</div>';
+    h += '<div style="margin-bottom:6px">' + srcBadge_(r) + '</div>';
+    if (r.src === 'ai' && r.reason) h += '<div style="font-size:11px;color:#4B5563;background:#F7F8FA;border-radius:6px;padding:6px;margin-bottom:6px">' + r.reason + '</div>';
+    h += '<div class="sc-tags">' + tags + '</div>';
+    h += '<div class="mr" style="margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA">';
+    h += '<div class="meta">案件単価: <strong>' + x.p.unit + '</strong></div>';
+    h += '<div class="meta">要員希望: <strong>' + x.s.unit_min + '万〜</strong></div>';
+    h += '<div class="meta">勤務: <strong>' + x.p.remote + '</strong></div></div>';
+    h += '</div>';
+    return h;
+  }).join('');
 }
 
 function cycleStBtn(btn) {
@@ -537,8 +793,9 @@ function pickS(id) {
   var el = document.getElementById('sli-' + id); if (el) el.classList.add('on');
   var s = STAFF.find(function(x) { return x.id === id; }); if (!s) return;
   var res = PROJECTS.filter(function(p) { return getSt('project', p.id) !== 'closed'; }).map(function(p) {
-    var sc = calcScore(s, p);
-    return {p:p, s:s, total:sc.total, skillPts:sc.skillPts, unitPts:sc.unitPts, workPts:sc.workPts, hit:sc.hit, miss:sc.miss};
+    var sc = getScore(s, p);
+    sc.p = p; sc.s = s;
+    return sc;
   }).sort(function(a,b) { return b.total-a.total; }).slice(0, MATCH_COUNT);
   var h = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
   h += '<span style="font-size:15px;font-weight:700">' + s.name + '</span>';
@@ -567,8 +824,9 @@ function pickP(id) {
   var el = document.getElementById('pli-' + id); if (el) el.classList.add('on');
   var p = PROJECTS.find(function(x) { return x.id === id; }); if (!p) return;
   var res = STAFF.filter(function(s) { return getSt('staff', s.id) !== 'closed'; }).map(function(s) {
-    var sc = calcScore(s, p);
-    return {p:p, s:s, total:sc.total, skillPts:sc.skillPts, unitPts:sc.unitPts, workPts:sc.workPts, hit:sc.hit, miss:sc.miss};
+    var sc = getScore(s, p);
+    sc.p = p; sc.s = s;
+    return sc;
   }).sort(function(a,b) { return b.total-a.total; }).slice(0, REV_COUNT);
   var h = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
   h += '<span style="font-size:15px;font-weight:700">' + p.name + '</span>';
@@ -684,20 +942,35 @@ function openDet(sId, pId, isMatch) {
   var s = STAFF.find(function(x) { return x.id === sId; });
   var p = PROJECTS.find(function(x) { return x.id === pId; });
   if (!s || !p) return;
-  var sc = calcScore(s, p);
-  var col = sc.total>=70?'#0F9D6E':sc.total>=45?'#D97706':'#6B7280';
-  document.getElementById('detttl').textContent = s.name + ' x ' + p.name;
+  var sc = getScore(s, p);
+  var col = scColor_(sc.total);
+  document.getElementById('detttl').textContent = s.name + ' × ' + p.name;
 
   var skillTags = (p.skills||[]).map(function(sk) {
-    var h2 = sc.hit.indexOf(sk) >= 0;
-    return '<span class="dtag ' + (h2?'hit':'miss') + '">' + (h2?'v':'x') + ' ' + sk + '</span>';
+    if (sc.hit.indexOf(sk) >= 0)  return '<span class="dtag hit">✓ ' + sk + '</span>';
+    if ((sc.part||[]).indexOf(sk) >= 0) return '<span class="dtag part">△ ' + sk + '（同系統の経験あり）</span>';
+    return '<span class="dtag miss">✕ ' + sk + '</span>';
+  }).join('');
+  var prefTags = (p.skills_pref||[]).map(function(sk) {
+    var ok = (sc.prefHit||[]).indexOf(sk) >= 0;
+    return '<span class="dtag ' + (ok?'hit':'neu') + '">' + (ok?'✓':'尚可') + ' ' + sk + '</span>';
   }).join('');
   var sTags = (s.skills||[]).map(function(sk) { return '<span class="dtag neu">' + sk + '</span>'; }).join('');
 
-  var h = '<div class="ssum">';
+  var h = '';
+  if (sc.src === 'ai') {
+    h += '<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;color:#3730A3;line-height:1.6">'
+       + '<strong>AI採点：' + sc.total + '点</strong>' + (sc.reason ? '　' + sc.reason : '')
+       + '<div style="font-size:11px;color:#6366F1;margin-top:3px">（ルールベース参考値: ' + sc.ruleTotal + '点。下の内訳はルールベースの計算です）</div></div>';
+  } else {
+    h += '<div style="background:#F3F4F6;border-radius:8px;padding:8px;margin-bottom:10px;font-size:11px;color:#6B7280">'
+       + 'この組み合わせはまだAI採点されていません（ルールベースのスコアです）。深夜バッチで自動的に精査されます。</div>';
+  }
+  h += '<div class="ssum">';
   h += '<div class="sblk"><div class="sblkv" style="color:'+col+'">' + sc.total + '</div><div class="sblkl">総合/100</div></div>';
-  h += '<div class="sblk"><div class="sblkv" style="color:#0F9D6E">' + sc.skillPts + '</div><div class="sblkl">スキル/60</div></div>';
-  h += '<div class="sblk"><div class="sblkv" style="color:#2563EB">' + sc.unitPts + '</div><div class="sblkl">単価/25</div></div>';
+  h += '<div class="sblk"><div class="sblkv" style="color:#0F9D6E">' + sc.skillPts + '</div><div class="sblkl">スキル/50</div></div>';
+  h += '<div class="sblk"><div class="sblkv" style="color:#2563EB">' + sc.unitPts + '</div><div class="sblkl">単価/20</div></div>';
+  h += '<div class="sblk"><div class="sblkv" style="color:#D97706">' + sc.timePts + '</div><div class="sblkl">時期/15</div></div>';
   h += '<div class="sblk"><div class="sblkv" style="color:#7C3AED">' + sc.workPts + '</div><div class="sblkl">働き方/15</div></div>';
   h += '</div>';
   h += '<div class="dsec"><div class="dsh">要員情報</div>';
@@ -719,8 +992,11 @@ function openDet(sId, pId, isMatch) {
   h += '<div class="drow"><span class="dlbl">稼働開始</span><span class="dval">' + p.start + '</span></div>';
   h += '<div class="drow"><span class="dlbl">勤務形態</span><span class="dval">' + p.remote + (p.location?'（'+p.location+'）':'') + '</span></div>';
   h += '<div class="drow"><span class="dlbl">情報元</span><span class="dval">' + p.source + '</span></div>';
-  if (sc.locNote) h += '<div class="drow"><span class="dlbl">勤務地判定</span><span class="dval" style="color:#D97706">⚠ ' + sc.locNote + '</span></div>';
+  [['勤務地判定', sc.locNote], ['単価判定', sc.unitNote], ['時期判定', sc.timeNote]].forEach(function(x) {
+    if (x[1]) h += '<div class="drow"><span class="dlbl">' + x[0] + '</span><span class="dval" style="color:#D97706">⚠ ' + x[1] + '</span></div>';
+  });
   h += '<div class="dtags">' + skillTags + '</div>';
+  if (prefTags) h += '<div style="font-size:11px;color:#6B7280;margin-top:4px">尚可スキル</div><div class="dtags">' + prefTags + '</div>';
   if (p.desc) {
     h += '<button class="desctoggle" onclick="toggleDesc(\'ddesc-p\',this)">▼ 概要を見る</button>';
     h += '<div class="descbox" id="ddesc-p">' + p.desc + '</div>';
@@ -747,7 +1023,7 @@ function genProposalMail(sId, pId) {
   var box = document.getElementById('mailpr');
   var btn = document.getElementById('mailcopybtn');
   box.className = 'pr show'; box.textContent = '生成中...'; btn.style.display = 'none';
-  var sc = calcScore(s, p);
+  var sc = getScore(s, p);
   var prompt = 'あなたはSES業界で経験を積んだ営業担当者です。以下の要員情報・案件情報をもとに、'
     + '案件担当者（発注元のBPまたはエンド企業の窓口）へ送る「要員提案メール」を、件名を含めて作成してください。\n\n'
     + '【要員情報】\n名前: ' + s.name + '\nスキル: ' + (s.skills||[]).join('、')
@@ -837,14 +1113,27 @@ function parseAll() {
   cnt.textContent = ''; document.getElementById('allprev').style.display = 'none';
 
   var prompt = 'SES案件・要員情報のテキストからすべての情報を抽出してJSONで返してください（説明なし・JSONのみ）。\n\n'
-    + '{"projects":[{"name":"(案件名を記載)","skills":["(技術キーワード)"],"unit":"(単価の金額表記。例:80万円 のように必ずテキスト中の実際の数値を書き写す。ラベルや説明文はここに入れない)","unit_max":数値,"remote":"フルリモートまたはリモート可またはハイブリッドまたは常駐","location":"常駐/ハイブリッドの場合の勤務先都道府県（フルリモートなら空文字）","start":"(稼働開始時期を記載)","source":"(情報元・BP名を記載)","desc":"概要・仕事内容の説明文"}],'
+    + '{"projects":[{"name":"(案件名)","skills":["(必須スキル)"],"skills_pref":["(尚可スキル)"],"unit":"(単価の金額表記。例:80万円 のように必ずテキスト中の実際の数値を書き写す。ラベルや説明文はここに入れない)","unit_max":数値またはnull,"remote":"リモートまたはハイブリッドまたは常駐","location":"勤務先の都道府県（例:東京都）","start":"(稼働開始時期)","source":"(情報元・BP名)","desc":"概要・仕事内容の説明文"}],'
     + '"staff":[{"name":"名前(年齢)","skills":["スキル"],"unit_min":数値,"remote":true,"start":"稼働開始","location":"都道府県","source":"所属企業","desc":"経歴・実績の説明文"}]}\n\n'
-    + '【重要】上記のJSON例内の（）で書かれた説明はすべて記述方法の説明であり、そのままの文字列を出力してはいけません。必ずテキストの中から実際の値を抽出してください。特にunitフィールドに"単価"や"金額"のようなラベル名自体をそのまま入れることは禁止です。値が見つからない場合は空文字にしてください。\n\n'
-    + '案件判断：案件名・必須スキル・単価・配信番号があれば案件。要員判断：氏名・スキル・希望単価があれば要員。unit_max不明なら70。unit_min不明なら60。remoteは常駐系ならfalse。\n\n'
-    + '【重要】skillsは技術キーワードのみを短い単語で列挙してください（例："React","AWS","PM"）。各要素は必ず20文字以内にしてください。\n'
-    + '【重要】【概要】【工程】【期間】【必須】【尚可】【人数】【面談】【精算】【備考】などの説明ブロックはskillsに入れず、元の文章のまま"desc"フィールドにまとめて入れてください（JSON文字列として不正にならないよう、改行は生の改行ではなく必ず\\nとしてエスケープしてください）。該当する説明文が全くない場合はdescは空文字にしてください。\n'
-    + '【重要】案件名が明記されていない場合は、本文の内容から「〇〇開発」のような簡潔な仮の案件名を推測してつけてください（"案件名不明"のような空欄的な名前にはしないでください）。\n'
-    + '【重要】同一案件について単価の記載が複数箇所にある場合（例：X/SNS投稿用の宣伝文と、【単価】【条件】等が並ぶ正式な案件詳細の両方に単価が書かれている）、SNS投稿用の簡易な文言ではなく、【単価】など正式な条件が列挙されている詳細部分の金額を優先してください。金額が特定できない場合、unitは"万円"のように単位だけの文字列にせず、必ず空文字にしてください。\n\nテキスト:\n' + text;
+    + '【重要】上記のJSON例内の（）で書かれた説明は記述方法の説明です。そのままの文字列を出力してはいけません。必ずテキストの中から実際の値を抽出してください。特にunitフィールドに"単価"や"金額"のようなラベル名自体をそのまま入れることは禁止です。値が見つからない場合は空文字にしてください。\n\n'
+    + '案件判断：案件名・必須スキル・単価・配信番号があれば案件。要員判断：氏名・スキル・希望単価があれば要員。\n\n'
+    + '★★ skills（必須スキル）の抽出ルール ★★\n'
+    + '・skills には「その案件で中核となる技術」だけを最大5個までに絞って入れてください。多くても6個です。\n'
+    + '・具体的には、案件の中心となるプログラミング言語・フレームワーク・主要クラウドのみです（例："Java","Spring Boot","AWS"）。\n'
+    + '・以下は skills に入れず、skills_pref または省略してください：\n'
+    + '   - 尚可・歓迎・あれば尚可と明記されているもの → skills_pref へ\n'
+    + '   - 補助的なツール類（Git, GitHub, GitLab, Jenkins, Figma, JIRA, Photoshop など）\n'
+    + '   - 工程・プロセス用語（アジャイル, スクラム, テスト, 保守運用, ベンダーコントロール など）\n'
+    + '   - 案件固有の業務用語（シミュレーションRPG, KPI設計, 事業企画 など）\n'
+    + '・理由：必須スキルを20個も並べると「全部持っている人」が存在せず、マッチングが機能しなくなるためです。\n\n'
+    + '【重要】unit_max は数値のみ。金額が特定できない場合（"スキル見合い"等）は必ず null にしてください。文字列を入れないでください。\n'
+    + '【重要】remote は必ず "リモート" "ハイブリッド" "常駐" のいずれか1語にしてください。フルリモート・リモート可は"リモート"、一部リモート・週N出社は"ハイブリッド"、出社必須・リモート不可は"常駐"です。\n'
+    + '【重要】location は必ず都道府県名（例:東京都、大阪府）に変換してください。駅名や地名しか書かれていない場合も都道府県に直してください（例:大手町→東京都、長岡京→京都府）。フルリモートで勤務地の指定がない場合のみ空文字にしてください。\n'
+    + '【重要】要員の remote は、リモート勤務を希望している場合のみ true、常駐可・出社可なら false にしてください。\n'
+    + '【重要】各スキル要素は必ず20文字以内の短い単語にしてください。\n'
+    + '【重要】【概要】【工程】【期間】【人数】【面談】【精算】【備考】などの説明ブロックはskillsに入れず、元の文章のまま"desc"にまとめて入れてください（改行は必ず\\nとしてエスケープ）。該当がなければdescは空文字。\n'
+    + '【重要】案件名が明記されていない場合は、本文から「〇〇開発」のような簡潔な仮の案件名を推測してつけてください。\n'
+    + '【重要】単価の記載が複数箇所にある場合（SNS投稿用の宣伝文と、【単価】等が並ぶ正式な案件詳細）、正式な詳細部分の金額を優先してください。\n\nテキスト:\n' + text;
 
   callClaude(prompt).then(function(raw) {
     var cleaned = raw; while(cleaned.indexOf('\x60\x60\x60') >= 0) { cleaned = cleaned.replace('\x60\x60\x60json','').replace('\x60\x60\x60',''); } cleaned = cleaned.trim();
@@ -865,6 +1154,10 @@ function parseAll() {
     _pendP.forEach(function(pp) {
       // GAS側と同じ基準：数字を含まない単価(AIの抽出失敗等)は「スキル見合い」に統一
       if (pp.unit && !/\d/.test(pp.unit)) pp.unit = 'スキル見合い';
+      // 型ガード：unit_max は数値か null のみ許可
+      var um = Number(pp.unit_max);
+      pp.unit_max = (isFinite(um) && um > 0) ? um : null;
+      pp.skills_pref = cleanSkillArr_(pp.skills_pref);
     });
     _pendS = parsed.staff    || [];
     var total = _pendP.length + _pendS.length;
@@ -882,7 +1175,16 @@ function parseAll() {
         ph += '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#6B7280;margin-bottom:8px"><span>単価: <strong>' + pp.unit + '</strong></span><span>勤務: <strong>' + pp.remote + (pp.location?'／'+pp.location:'') + '</strong></span><span>稼働: <strong>' + pp.start + '</strong></span></div>';
         ph += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
         ph += '<input type="text" id="pp' + i + '" value="' + (pp.source||'') + '" placeholder="例：フリースタイル" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc + ';border-radius:6px;font-size:13px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
+        ph += '<div style="font-size:11px;color:#6B7280;margin-bottom:3px">必須スキル（' + (pp.skills||[]).length + '個）</div>';
         ph += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + pt + '</div>';
+        if ((pp.skills||[]).length > 7) {
+          ph += '<div style="font-size:11px;color:#DC2626;margin-top:4px">⚠ 必須スキルが多すぎます（' + pp.skills.length + '個）。この人数を全て満たす要員は存在しない可能性が高く、マッチ度が不当に下がります</div>';
+        }
+        if ((pp.skills_pref||[]).length) {
+          var pt2 = pp.skills_pref.map(function(sk) { return '<span style="font-size:11px;padding:3px 8px;background:#FFFBEB;color:#D97706;border-radius:20px">' + sk + '</span>'; }).join('');
+          ph += '<div style="font-size:11px;color:#6B7280;margin:6px 0 3px">尚可スキル（' + pp.skills_pref.length + '個・加点のみ）</div>';
+          ph += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + pt2 + '</div>';
+        }
         if (pp.desc) ph += '<div style="font-size:11px;color:#0F9D6E;margin-top:6px">✓ 概要文を抽出しました（' + pp.desc.length + '文字）</div>';
         ph += '</div>';
       }
@@ -957,7 +1259,8 @@ function confirmAdd() {
     var item = _pendP[pi];
     maxPId += 1; item.id = maxPId;
     item.date = today;
-    item.skills = (item.skills || []).filter(function(sk) { return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN; });
+    item.skills = cleanSkillArr_(item.skills);
+    item.skills_pref = cleanSkillArr_(item.skills_pref);
     PROJECTS.push(item); addP++; pi++;
     doSave('project', item, function(ok) { if(ok) savP++; addNextP(); });
   }
@@ -966,14 +1269,15 @@ function confirmAdd() {
     var item = _pendS[si];
     maxSId += 1; item.id = maxSId;
     item.date = today;
-    item.skills = (item.skills || []).filter(function(sk) { return typeof sk === 'string' && sk.trim().length > 0 && sk.length <= MAX_SKILL_LEN; });
+    item.skills = cleanSkillArr_(item.skills);
     STAFF.push(item); addS++; si++;
     doSave('staff', item, function(ok) { if(ok) savS++; addNextS(si); });
   }
   function done() {
-    applyPFilter(); applyRevProjFilter(); applySFilter(); applyMatchStaffFilter(); updateStats();
+    applyPFilter(); applyRevProjFilter(); applySFilter(); applyMatchStaffFilter(); updateStats(); renderHot();
     var msg = GAS_URL ? 'スプレッドシートにも保存しました（案件'+savP+'件・要員'+savS+'名）' : 'スプレッドシートへの保存は設定タブでGAS URLを設定後に有効になります';
-    rs.textContent = '追加完了！案件'+addP+'件・要員'+addS+'名をDBに追加しました\n' + msg;
+    rs.textContent = '追加完了！案件'+addP+'件・要員'+addS+'名をDBに追加しました\n' + msg
+      + '\n※マッチ度はすぐルールベースで表示されます。AIによる精査は深夜バッチで自動実行され、翌朝スコアが更新されます。';
     document.getElementById('allta').value = ''; _pendP = []; _pendS = [];
   }
   rs.textContent = 'DBに追加中...';
