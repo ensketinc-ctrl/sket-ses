@@ -49,6 +49,8 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .srcb.ai{background:#EEF2FF;color:#4338CA}
 .srcb.rule{background:#F3F4F6;color:#6B7280}
 .ubadge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
+.propbtn{font-size:11px;padding:4px 12px;border-radius:20px;font-weight:700;border:none;cursor:pointer}
+.propbtn:hover{filter:brightness(0.94)}
 .hotsum{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;background:#fff;border-bottom:1px solid #E4E6EA}
 .hotsum span{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:700}
 .sc-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA}
@@ -146,6 +148,7 @@ textarea:focus{outline:none;border-color:#2563EB}
   <button class="tab on" onclick="doTab(this)" data-tab="hot">🔥 ホットマッチ</button>
   <button class="tab" onclick="doTab(this)" data-tab="match">マッチング</button>
   <button class="tab" onclick="doTab(this)" data-tab="rev">逆引き検索</button>
+  <button class="tab" onclick="doTab(this)" data-tab="bp">📤 BPへ一斉送信</button>
   <button class="tab" onclick="doTab(this)" data-tab="projs">案件一覧</button>
   <button class="tab" onclick="doTab(this)" data-tab="staffs">要員一覧</button>
   <button class="tab" onclick="doTab(this)" data-tab="paste">情報追加</button>
@@ -174,6 +177,13 @@ textarea:focus{outline:none;border-color:#2563EB}
       <option value="unknown">単価未定のみ</option>
     </select>
     <input class="si" style="flex:1;min-width:120px" placeholder="案件名・要員名・スキルで絞り込み..." oninput="hotState.q=this.value;renderHot()">
+    <select class="si" style="width:150px" onchange="hotState.prop=this.value;renderHot()">
+      <option value="未提案" selected>未提案のみ</option>
+      <option value="">提案状況：全て</option>
+      <option value="提案中">提案中のみ</option>
+      <option value="成約">成約のみ</option>
+      <option value="見送り">見送りのみ</option>
+    </select>
     <select class="si" style="width:120px" onchange="hotState.src=this.value;renderHot()">
       <option value="">スコア:全て</option><option value="ai">AI採点済のみ</option><option value="rule">未採点(ルール)のみ</option>
     </select>
@@ -222,6 +232,19 @@ textarea:focus{outline:none;border-color:#2563EB}
     </div>
     <div class="rpane" id="rres"><div class="empty">左の案件を選択してください</div></div>
   </div>
+</div>
+
+<div id="tab-bp" class="sec">
+  <div class="lbar">
+    <select class="si" style="width:200px" onchange="bpState.mode=this.value;renderBP()">
+      <option value="unsent">未送信があるBPのみ</option>
+      <option value="all">全てのBP</option>
+      <option value="none">流せるBPがない案件</option>
+    </select>
+    <input class="si" style="flex:1;min-width:120px" placeholder="BP名・案件名・要員名で絞り込み..." oninput="bpState.q=this.value;renderBP()">
+  </div>
+  <div style="padding:8px 14px;font-size:12px;color:#6B7280;background:#fff;border-bottom:1px solid #E4E6EA" id="bpinfo"></div>
+  <div class="lgrid" id="bpgrid"><div class="empty"><span class="spin"></span>計算中</div></div>
 </div>
 
 <div id="tab-projs" class="sec">
@@ -304,7 +327,19 @@ textarea:focus{outline:none;border-color:#2563EB}
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbwxigoqSq5dMELhMCwn3ctcIedIGAis3ymu1lY2SI_qSxWD9PLKjf0hMmYqqKZfXnYmCw/exec';
 var PROJECTS = [], STAFF = [];
 var SCORES = {};   // AI採点結果（key: "案件ID_要員ID" → {s:スコア, r:理由}）深夜バッチが生成
-var _pendP = [], _pendS = [];
+var BPS = [];      // BPリスト（要員を出せる取引先。GASの buildBPList() が生成）
+var SENT = {};     // BP配信ログ（key: "案件ID_BP名" → 配信日）
+var _pendP = [], _pendS = [], _pendSFiles = [], _pendSUrls = [];
+
+// 確認画面でスキルシートを選択したときに保持する
+function pickSheet(idx, el) {
+  var f = el.files && el.files[0];
+  if (!f) return;
+  if (f.size > 10 * 1024 * 1024) { alert('ファイルサイズは10MBまでにしてください'); el.value=''; return; }
+  _pendSFiles[idx] = f;
+  var lbl = document.getElementById('shn' + idx);
+  if (lbl) { lbl.textContent = '✓ ' + f.name; lbl.parentNode.style.color = '#0F9D6E'; }
+}
 
 function callClaude(prompt) {
   if (!GAS_URL || GAS_URL.indexOf('★') >= 0) {
@@ -420,18 +455,33 @@ function sanitizeSkills(list) {
   });
   return list;
 }
+// メールのリンク（?bp=オルタナエクス）から開いたとき、BP配信タブで該当BPを表示する
+function applyDeepLink_() {
+  var m = location.search.match(/[?&]bp=([^&]+)/);
+  if (!m) return;
+  var name = decodeURIComponent(m[1]);
+  var tab = document.querySelector('.tab[data-tab="bp"]');
+  if (tab) doTab(tab);
+  bpState.q = name;
+  var inp = document.querySelector('#tab-bp input.si');
+  if (inp) inp.value = name;
+  renderBP();
+}
+
 function loadData() {
   document.getElementById('su').textContent = '読込中';
   var done = function() {
     updateStats();
     applyMatchStaffFilter(); applyRevProjFilter(); applyPFilter(); applySFilter();
-    renderHot();
+    renderHot(); renderBP(); applyDeepLink_();
   };
   if (GAS_URL) {
     fetch(GAS_URL + '?type=all').then(function(r) { return r.json(); }).then(function(d) {
       PROJECTS = sanitizeSkills((d.projects && d.projects.length) ? d.projects : SAMPLE_P);
       STAFF    = sanitizeSkills((d.staff    && d.staff.length)    ? d.staff    : SAMPLE_S);
       SCORES   = d.scores || {};
+      BPS      = d.bps || [];
+      SENT     = d.sent || {};
       done();
     }).catch(function() { PROJECTS = sanitizeSkills(SAMPLE_P); STAFF = sanitizeSkills(SAMPLE_S); SCORES = {}; done(); });
   } else { PROJECTS = sanitizeSkills(SAMPLE_P); STAFF = sanitizeSkills(SAMPLE_S); done(); }
@@ -645,6 +695,305 @@ function getScore(s, p) {
 function scColor_(t) { return t >= 70 ? '#0F9D6E' : t >= 50 ? '#D97706' : '#6B7280'; }
 
 // ===========================================================================
+// 提案ステータス（案件 × 要員 のペア単位）
+//   未提案 → 提案中 → 成約 → 見送り → 単価NG → 未提案 とサイクル
+//   「提案メールを生成」した時点で自動的に「提案中」になる（追加操作ゼロ）
+// ===========================================================================
+var PROP_CYCLE = ['未提案', '提案中', '成約', '見送り', '単価NG'];
+var PROP_STYLE = {
+  '未提案': { bg:'#F3F4F6', fg:'#4B5563' },
+  '提案中': { bg:'#DBEAFE', fg:'#1D4ED8' },
+  '成約'  : { bg:'#D1FAE5', fg:'#047857' },
+  '見送り': { bg:'#FEE2E2', fg:'#B91C1C' },
+  '単価NG': { bg:'#FFEDD5', fg:'#C2410C' }
+};
+function getProp(pid, sid) {
+  var v = SCORES[pid + '_' + sid];
+  return (v && v.st) ? v.st : '未提案';
+}
+function setProp(pid, sid, status, silent) {
+  var k = pid + '_' + sid;
+  if (!SCORES[k]) SCORES[k] = { s: 0, r: '' };
+  SCORES[k].st = status;
+  SCORES[k].sd = (status === '未提案') ? '' : new Date().toLocaleDateString('ja-JP');
+  if (!GAS_URL) return;
+  fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify({ type:'propose', pid: pid, sid: sid, status: status }) })
+    .catch(function() { if (!silent) alert('提案ステータスの保存に失敗しました'); });
+}
+function propBtn_(pid, sid) {
+  var st = getProp(pid, sid), s = PROP_STYLE[st] || PROP_STYLE['未提案'];
+  return '<button class="propbtn" style="background:' + s.bg + ';color:' + s.fg + '" '
+    + 'data-pid="' + pid + '" data-sid="' + sid + '" '
+    + 'onclick="event.stopPropagation();cycleProp(this)">' + st + '</button>';
+}
+function cycleProp(btn) {
+  var pid = Number(btn.dataset.pid), sid = Number(btn.dataset.sid);
+  var cur = getProp(pid, sid);
+  var next = PROP_CYCLE[(PROP_CYCLE.indexOf(cur) + 1) % PROP_CYCLE.length];
+  setProp(pid, sid, next);
+  var s = PROP_STYLE[next];
+  btn.textContent = next; btn.style.background = s.bg; btn.style.color = s.fg;
+}
+
+// ===========================================================================
+// 📤 BP配信：案件を「要員を出せるBP」にLINEで流す
+//   ・BP単位で表示し、そのBPに未配信の案件をまとめて1つの文面にできる
+//   ・配信履歴は (案件ID × BP名) のペア単位で記録（1案件を複数BPに流すため）
+// ===========================================================================
+var BP_THRESHOLD = 0.5;
+var bpState = { mode: 'unsent', q: '' };
+
+function bpMatchRate_(p, bp) {
+  var req = (p.skills || []).map(normSkill_);
+  if (!req.length) return 0;
+  var pool = {};
+  (bp.skills || []).forEach(function(s) { pool[normSkill_(s)] = true; });
+  var hit = req.filter(function(r) { return pool[r]; }).length;
+  return hit / req.length;
+}
+function isSent_(kind, id, bpName) { return SENT[kind + '_' + id + '_' + bpName] || ''; }
+
+function renderBP() {
+  var grid = document.getElementById('bpgrid');
+  var info = document.getElementById('bpinfo');
+  if (!grid) return;
+  if (!BPS.length) {
+    grid.innerHTML = '<div class="empty">BPリストがありません。<br><br>スプレッドシートのApps Scriptで <strong>buildBPList()</strong> を実行してください。</div>';
+    info.textContent = ''; return;
+  }
+  var ps = PROJECTS.filter(function(p) { return getSt('project', p.id) !== 'closed'; });
+  var st = STAFF.filter(function(s) { return getSt('staff', s.id) !== 'closed'; });
+  var bps = BPS.filter(function(b) { return b.count > 0; });
+
+  // BPごとに「送る案件」「送る要員」を集める
+  var cards = bps.map(function(bp) {
+    var pj = ps.map(function(p) { return { p: p, rate: bpMatchRate_(p, bp) }; })
+               .filter(function(x) { return x.rate >= BP_THRESHOLD; })
+               .sort(function(a, b) { return b.rate - a.rate; });
+    var pjU = pj.filter(function(x) { return !isSent_('案件', x.p.id, bp.name); });
+    // 要員：そのBP自身の所属は除外（自分の人を自分に送らない）
+    var sf  = st.filter(function(s) { return s.source !== bp.name; });
+    var sfU = sf.filter(function(s) { return !isSent_('要員', s.id, bp.name); });
+    return { bp: bp, pj: pj, pjU: pjU, sf: sf, sfU: sfU };
+  });
+
+  var orphan = ps.filter(function(p) {
+    return !bps.some(function(bp) { return bpMatchRate_(p, bp) >= BP_THRESHOLD; });
+  });
+
+  var totP = cards.reduce(function(a, c) { return a + c.pjU.length; }, 0);
+  var totS = cards.reduce(function(a, c) { return a + c.sfU.length; }, 0);
+  info.innerHTML = 'BP <strong>' + bps.length + '</strong>社 ／ 有効案件 <strong>' + ps.length + '</strong>件 ／ 有効要員 <strong>' + st.length + '</strong>名'
+    + ' ／ <strong style="color:#7C3AED">未送信：案件 ' + totP + '件・要員 ' + totS + '名</strong>'
+    + ' ／ <strong style="color:#DC2626">流せるBPがない案件: ' + orphan.length + '件</strong>'
+    + '<div style="margin-top:3px;font-size:11px;color:#9CA3AF">BPには案件情報と要員情報を一斉に送ります。'
+    + '案件＝「対応できる人はいますか？」／要員＝「この人に合う案件はありますか？」</div>';
+
+  if (bpState.mode === 'none') {
+    if (!orphan.length) { grid.innerHTML = '<div class="empty">流せるBPがない案件はありません</div>'; return; }
+    grid.innerHTML = orphan.map(function(p) {
+      var h = '<div class="card" style="border-left:4px solid #DC2626">';
+      h += '<div style="font-size:13px;font-weight:700;margin-bottom:4px">' + p.name + '</div>';
+      h += '<div class="sc-tags">' + (p.skills||[]).map(function(s){ return '<span class="stag miss">' + s + '</span>'; }).join('') + '</div>';
+      h += '<div class="mr" style="margin-top:6px"><div class="meta">単価: <strong>' + p.unit + '</strong></div><div class="meta">案件元: <strong>' + p.source + '</strong></div></div>';
+      h += '<div style="font-size:12px;color:#DC2626;background:#FEF2F2;border-radius:6px;padding:8px;margin-top:6px">⚠ このスキルの要員を持つBPがありません。<strong>新規開拓が必要です。</strong></div>';
+      h += '<button class="btn btn-d" style="margin-top:8px;width:100%" onclick="copyOneProj(' + p.id + ')">📋 この案件の文面をコピー（新規BP打診用）</button>';
+      h += '</div>';
+      return h;
+    }).join('');
+    return;
+  }
+
+  var show = cards.filter(function(c) {
+    if (bpState.mode === 'unsent' && !c.pjU.length && !c.sfU.length) return false;
+    if (bpState.q) {
+      var q = bpState.q.toLowerCase();
+      var hay = (c.bp.name + ' ' + c.pj.map(function(x){return x.p.name;}).join(' ') + ' ' + c.sf.map(function(s){return s.name;}).join(' ')).toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  }).sort(function(a, b) { return (b.pjU.length + b.sfU.length) - (a.pjU.length + a.sfU.length); });
+
+  if (!show.length) { grid.innerHTML = '<div class="empty">未送信のBPはありません。すべて送信済みです。</div>'; return; }
+
+  grid.innerHTML = show.map(function(c) {
+    var bp = c.bp;
+    var esc = bp.name.replace(/'/g, "\\'");
+    var h = '<div class="card" style="border-left:4px solid #7C3AED">';
+    h += '<div class="ct"><div class="cn">' + bp.name + '</div><span class="badge bg-g">保有要員 ' + bp.count + '名</span></div>';
+    h += '<div style="font-size:11px;color:#6B7280;margin:2px 0 8px">' + (bp.way || '連絡方法未設定') + ' ／ 得意: ' + (bp.skills||[]).slice(0,6).join(', ') + '</div>';
+
+    // 案件
+    h += '<div style="font-size:12px;font-weight:700;color:#7C3AED;margin:8px 0 4px">📄 送る案件 ' + c.pjU.length + '件'
+       + (c.pj.length > c.pjU.length ? '<span style="font-weight:400;color:#9CA3AF">（送信済 ' + (c.pj.length - c.pjU.length) + '件）</span>' : '') + '</div>';
+    if (!c.pjU.length) h += '<div style="font-size:11px;color:#9CA3AF">未送信の案件はありません</div>';
+    c.pjU.slice(0, 5).forEach(function(x) {
+      h += '<div style="font-size:11px;color:#4B5563;padding:3px 0;border-bottom:1px dotted #E4E6EA">・' + x.p.name + '（' + x.p.unit + '）<span style="color:#5B21B6;font-weight:700"> ' + Math.round(x.rate*100) + '%</span></div>';
+    });
+    if (c.pjU.length > 5) h += '<div style="font-size:11px;color:#9CA3AF;padding:3px 0">・ほか' + (c.pjU.length - 5) + '件</div>';
+
+    // 要員
+    h += '<div style="font-size:12px;font-weight:700;color:#0F9D6E;margin:10px 0 4px">👤 送る要員 ' + c.sfU.length + '名'
+       + (c.sf.length > c.sfU.length ? '<span style="font-weight:400;color:#9CA3AF">（送信済 ' + (c.sf.length - c.sfU.length) + '名）</span>' : '') + '</div>';
+    if (!c.sfU.length) h += '<div style="font-size:11px;color:#9CA3AF">未送信の要員はいません</div>';
+    c.sfU.slice(0, 5).forEach(function(s) {
+      h += '<div style="font-size:11px;color:#4B5563;padding:3px 0;border-bottom:1px dotted #E4E6EA">・' + s.name + '（' + s.unit_min + '万〜 / ' + s.start + '）'
+         + (s.sheet_url ? '<span style="color:#0F9D6E"> 📄</span>' : '<span style="color:#D97706"> ⚠シート無</span>') + '</div>';
+    });
+    if (c.sfU.length > 5) h += '<div style="font-size:11px;color:#9CA3AF;padding:3px 0">・ほか' + (c.sfU.length - 5) + '名</div>';
+
+    h += '<div style="display:flex;gap:6px;margin-top:10px">';
+    if (c.pjU.length || c.sfU.length) {
+      h += '<button class="btn btn-p" style="flex:1" onclick="copyAllForBP(\'' + esc + '\',\'both\')">📋 案件＋要員をまとめてコピー</button>';
+    }
+    h += '</div>';
+    if (c.pjU.length && c.sfU.length) {
+      h += '<div style="display:flex;gap:6px;margin-top:5px">'
+         + '<button class="btn btn-d" style="flex:1;font-size:11px" onclick="copyAllForBP(\'' + esc + '\',\'proj\')">案件だけ</button>'
+         + '<button class="btn btn-d" style="flex:1;font-size:11px" onclick="copyAllForBP(\'' + esc + '\',\'staff\')">要員だけ</button></div>';
+    }
+    h += '</div>';
+    return h;
+  }).join('');
+}
+
+// 1件ぶんの文面
+function projText_(p) {
+  var t = '【案件名】' + p.name + '\n';
+  t += '【必須スキル】' + (p.skills || []).join('、') + '\n';
+  if ((p.skills_pref || []).length) t += '【尚可スキル】' + p.skills_pref.join('、') + '\n';
+  t += '【単価】' + p.unit + '\n';
+  t += '【勤務形態】' + p.remote + (p.location ? '（' + p.location + '）' : '') + '\n';
+  t += '【稼働開始】' + p.start + '\n';
+  if (p.desc) t += '【詳細】\n' + p.desc + '\n';
+  return t;
+}
+function staffText_(s) {
+  var wp = s.work_pref === 'remote' ? 'リモート希望' : s.work_pref === 'onsite' ? '常駐希望' : '出社も可';
+  var t = '【要員】' + s.name + '\n';
+  t += '【スキル】' + (s.skills || []).join('、') + '\n';
+  t += '【希望単価】' + s.unit_min + '万〜\n';
+  t += '【稼働開始】' + s.start + '\n';
+  t += '【勤務地】' + (s.location || '要相談') + '（' + wp + '）\n';
+  if (s.desc) t += '【経歴】\n' + String(s.desc).slice(0, 800) + '\n';
+  t += s.sheet_url ? '【スキルシート】別途お送りします\n' : '';
+  return t;
+}
+
+// BPへ一斉送信（案件＋要員／案件のみ／要員のみ）
+function copyAllForBP(bpName, kind) {
+  var bp = BPS.filter(function(b) { return b.name === bpName; })[0];
+  if (!bp) return;
+  var ps = (kind === 'staff') ? [] : PROJECTS.filter(function(p) {
+    return getSt('project', p.id) !== 'closed'
+      && bpMatchRate_(p, bp) >= BP_THRESHOLD
+      && !isSent_('案件', p.id, bpName);
+  });
+  var ss = (kind === 'proj') ? [] : STAFF.filter(function(s) {
+    return getSt('staff', s.id) !== 'closed'
+      && s.source !== bpName
+      && !isSent_('要員', s.id, bpName);
+  });
+  if (!ps.length && !ss.length) return;
+
+  var t = 'お世話になっております。株式会社SKETです。\n案件・要員情報をお送りいたします。\n\n';
+  if (ps.length) {
+    t += '━━━━━━━━━━━━━━━\n【案件情報】' + ps.length + '件\n━━━━━━━━━━━━━━━\n';
+    t += 'ご対応可能な要員がいらっしゃいましたら、スキルシートをお送りください。\n\n';
+    ps.forEach(function(p, i) { t += '◆' + (i+1) + '\n' + projText_(p) + '\n'; });
+  }
+  if (ss.length) {
+    t += '━━━━━━━━━━━━━━━\n【要員情報】' + ss.length + '名\n━━━━━━━━━━━━━━━\n';
+    t += 'ご紹介可能な案件がございましたらご連絡ください。\n\n';
+    ss.forEach(function(s, i) { t += '◆' + (i+1) + '\n' + staffText_(s) + '\n'; });
+  }
+  t += '━━━━━━━━━━━━━━━\n引き続きよろしくお願いいたします。\n株式会社SKET';
+
+  navigator.clipboard.writeText(t).then(function() {
+    var items = ps.map(function(p) { return { kind:'案件', id:p.id, name:p.name }; })
+      .concat(ss.map(function(s) { return { kind:'要員', id:s.id, name:s.name }; }));
+    items.forEach(function(x) { SENT[x.kind + '_' + x.id + '_' + bpName] = new Date().toLocaleDateString('ja-JP'); });
+    if (GAS_URL) {
+      fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({ type:'bpsent', bp: bpName, items: items }) });
+    }
+    renderBP();
+    alert('案件' + ps.length + '件・要員' + ss.length + '名の文面をコピーしました。\nLINEに貼り付けてください。\n（すべて「' + bpName + 'へ送信済み」として記録しました）');
+  });
+}
+
+// 新規BP打診用（1案件のみ・記録はしない）
+function copyOneProj(pid) {
+  var p = PROJECTS.filter(function(x) { return x.id === pid; })[0];
+  if (!p) return;
+  var t = 'お世話になっております。株式会社SKETです。\nご紹介可能な案件をお送りいたします。\n\n'
+        + projText_(p)
+        + '\nご対応可能な要員がいらっしゃいましたら、スキルシートをお送りください。\nよろしくお願いいたします。';
+  navigator.clipboard.writeText(t).then(function() { alert('文面をコピーしました。'); });
+}
+
+// ===========================================================================
+// スキルシート：ファイルアップロード ／ リンク貼り付け の両対応
+//   BPからはファイル添付で来ることもURLで共有されることもあるため両方受ける
+// ===========================================================================
+function uploadSheet(staffId, inputEl) {
+  var f = inputEl.files && inputEl.files[0];
+  if (!f) return;
+  if (!GAS_URL) { alert('GAS URLが未設定のためアップロードできません'); return; }
+  if (f.size > 10 * 1024 * 1024) { alert('ファイルサイズは10MBまでにしてください'); return; }
+  var s = STAFF.filter(function(x) { return x.id === staffId; })[0];
+  if (!s) return;
+  var lbl = inputEl.parentNode.querySelector('.shlbl');
+  if (lbl) lbl.textContent = 'アップロード中...';
+
+  var rd = new FileReader();
+  rd.onload = function() {
+    fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ type:'upload', staffId:staffId, staffName:s.name, source:s.source,
+        filename:f.name, mimeType:f.type, dataB64:String(rd.result).split(',')[1] })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.success && d.url) { s.sheet_url = d.url; applySFilter(); alert('スキルシートをDriveに保存しました'); }
+      else { alert('保存に失敗しました: ' + (d.error || '不明')); if (lbl) lbl.textContent = '📎 ファイルを添付'; }
+    }).catch(function(e) { alert('保存に失敗: ' + e); if (lbl) lbl.textContent = '📎 ファイルを添付'; });
+  };
+  rd.readAsDataURL(f);
+}
+
+// リンク（Drive共有URL等）で来た場合
+function linkSheet(staffId) {
+  var s = STAFF.filter(function(x) { return x.id === staffId; })[0];
+  if (!s) return;
+  var url = prompt('スキルシートのURLを貼り付けてください\n（Google Drive、Dropbox、ギガファイル便などの共有リンク）', s.sheet_url || '');
+  if (url === null) return;
+  url = url.trim();
+  if (url && !/^https?:\/\//.test(url)) { alert('http:// または https:// で始まるURLを入力してください'); return; }
+  if (!GAS_URL) { alert('GAS URLが未設定のため保存できません'); return; }
+  fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify({ type:'sheeturl', staffId:staffId, url:url })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) { s.sheet_url = url; applySFilter(); alert(url ? 'スキルシートのURLを登録しました' : 'URLを削除しました'); }
+    else alert('保存に失敗しました: ' + (d.error || '不明'));
+  }).catch(function(e) { alert('保存に失敗: ' + e); });
+}
+
+// 要員カードのスキルシート欄
+function sheetCell_(s) {
+  var h = '<div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap" onclick="event.stopPropagation()">';
+  if (s.sheet_url) {
+    h += '<a href="' + s.sheet_url + '" target="_blank" style="font-size:11px;color:#0F9D6E;font-weight:700;text-decoration:none">📄 スキルシートを開く</a>';
+    h += '<button class="desctoggle" style="font-size:11px" onclick="linkSheet(' + s.id + ')">URLを変更</button>';
+  } else {
+    h += '<label style="font-size:11px;color:#D97706;font-weight:700;cursor:pointer">'
+       + '<span class="shlbl">📎 ファイルを添付</span>'
+       + '<input type="file" accept=".xlsx,.xls,.pdf,.docx" style="display:none" onchange="uploadSheet(' + s.id + ',this)"></label>';
+    h += '<button class="desctoggle" style="font-size:11px;color:#D97706" onclick="linkSheet(' + s.id + ')">🔗 URLで登録</button>';
+  }
+  h += '</div>';
+  return h;
+}
+
+// ===========================================================================
 // 単価バッジ
 //   「単価オーバーでも提案が通ることがある」ため、除外はせず色分けして見せる。
 //   diff = 案件の上限単価 − 要員の希望単価
@@ -726,7 +1075,7 @@ function mkCard(r, i, sId, pId, isMatch) {
   var h = '<div class="sc" style="' + (st==='closed'?'opacity:0.4':'') + '" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">';
   h += '<div class="sc-top"><div class="sc-rank ' + rc + '">' + (i+1) + '</div><div class="sc-name">' + obj.name + '</div>';
   h += '<div class="sc-score" style="color:' + col + '">' + r.total + '<span style="font-size:12px;font-weight:400">点</span></div></div>';
-  h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">' + unitBadge_(r.s, r.p) + srcBadge_(r) + '</div>';
+  h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;align-items:center">' + unitBadge_(r.s, r.p) + srcBadge_(r) + propBtn_(r.p.id, r.s.id) + '</div>';
   if (r.src === 'ai' && r.reason) h += '<div style="font-size:11px;color:#4B5563;background:#F7F8FA;border-radius:6px;padding:6px;margin-bottom:6px">' + r.reason + '</div>';
   h += bar_('スキル', r.skillPts, 50, col);
   h += bar_('単価',   r.unitPts,  20, col);
@@ -750,7 +1099,7 @@ function mkCard(r, i, sId, pId, isMatch) {
 // 🔥 ホットマッチ：全案件 × 全要員を横断し、スコアの高い組み合わせを抽出
 //   単価オーバーでも提案が通ることがあるため、除外はせず「色分け＋並べ替え」で見せる
 // ===========================================================================
-var hotState = { min: 75, q: '', src: '', unit: '', sort: 'score', limit: 60 };
+var hotState = { min: 75, q: '', src: '', unit: '', prop: '未提案', sort: 'score', limit: 60 };
 
 function renderHot() {
   var grid = document.getElementById('hotgrid');
@@ -775,16 +1124,20 @@ function renderHot() {
 
   // 単価区分ごとの件数（フィルタ前の全体像を常に見せる）
   var seg = { fit:0, nego:0, talk:0, over:0, unknown:0 };
-  all.forEach(function(x) { seg[x.uc]++; });
+  var pr = { '未提案':0, '提案中':0, '成約':0, '見送り':0, '単価NG':0 };
+  all.forEach(function(x) { seg[x.uc]++; pr[getProp(x.p.id, x.s.id)]++; });
   sum.innerHTML =
-      '<span style="background:#E8F7F2;color:#0F7A57">● 単価内（即提案）' + seg.fit + '</span>'
-    + '<span style="background:#FEF3C7;color:#B45309">● 交渉圏（10万以内）' + seg.nego + '</span>'
-    + '<span style="background:#FFEDD5;color:#C2410C">● 要相談（25万以内）' + seg.talk + '</span>'
+      '<span style="background:#E8F7F2;color:#0F7A57">● 単価内 ' + seg.fit + '</span>'
+    + '<span style="background:#FEF3C7;color:#B45309">● 交渉圏 ' + seg.nego + '</span>'
+    + '<span style="background:#FFEDD5;color:#C2410C">● 要相談 ' + seg.talk + '</span>'
     + '<span style="background:#FEE2E2;color:#B91C1C">● 大幅超過 ' + seg.over + '</span>'
-    + '<span style="background:#F3F4F6;color:#4B5563">○ 単価未定 ' + seg.unknown + '</span>';
+    + '<span style="background:#F3F4F6;color:#4B5563">○ 単価未定 ' + seg.unknown + '</span>'
+    + '<span style="background:#EDE9FE;color:#5B21B6;margin-left:8px">提案状況　未提案 ' + pr['未提案']
+    + ' ／ 提案中 ' + pr['提案中'] + ' ／ 成約 ' + pr['成約'] + ' ／ 見送り ' + pr['見送り'] + '</span>';
 
   // 絞り込み
   var list = all.filter(function(x) {
+    if (hotState.prop && getProp(x.p.id, x.s.id) !== hotState.prop) return false;
     if (hotState.src && x.r.src !== hotState.src) return false;
     if (hotState.unit === 'fit'     && x.uc !== 'fit') return false;
     if (hotState.unit === 'nego'    && x.uc !== 'nego') return false;
@@ -838,7 +1191,7 @@ function renderHot() {
     h += '<div style="font-size:22px;font-weight:800;color:' + col + '">' + r.total + '<span style="font-size:11px;font-weight:400">点</span></div></div>';
     h += '<div style="font-size:13px;font-weight:700;line-height:1.4;margin-bottom:2px">' + x.p.name + '</div>';
     h += '<div style="font-size:12px;color:#6B7280;margin-bottom:6px">⇔ <strong style="color:#7C3AED">' + x.s.name + '</strong>（' + x.s.source + '）</div>';
-    h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">' + unitBadge_(x.s, x.p) + srcBadge_(r) + '</div>';
+    h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;align-items:center">' + unitBadge_(x.s, x.p) + srcBadge_(r) + propBtn_(x.p.id, x.s.id) + '</div>';
     if (r.src === 'ai' && r.reason) h += '<div style="font-size:11px;color:#4B5563;background:#F7F8FA;border-radius:6px;padding:6px;margin-bottom:6px">' + r.reason + '</div>';
     h += '<div class="sc-tags">' + tags + '</div>';
     h += '<div class="mr" style="margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA">';
@@ -1038,7 +1391,9 @@ function mkStaffCard(s) {
   h += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="staff" data-id="' + s.id + '" onclick="cycleStBtn(this)">' + stLbl(st) + '</button></div>';
   h += '<div class="tags">' + tags + '</div>';
-  h += '<div class="mr"><div class="meta">リモート: <strong>' + (s.remote?'希望':'常駐可') + '</strong></div><div class="meta">稼働: <strong>' + s.start + '</strong></div><div class="meta">BP: <strong>' + s.source + '</strong></div></div>';
+  var wp = s.work_pref === 'remote' ? 'リモート希望' : s.work_pref === 'onsite' ? '常駐希望' : s.work_pref === 'flex' ? '出社も可' : '記載なし';
+  h += '<div class="mr"><div class="meta">勤務: <strong>' + wp + '</strong></div><div class="meta">稼働: <strong>' + s.start + '</strong></div><div class="meta">BP: <strong>' + s.source + '</strong></div></div>';
+  h += sheetCell_(s);
   if (s.desc) {
     h += '<button class="desctoggle" onclick="toggleDesc(\'sdesc-' + s.id + '\',this)">▼ 概要を見る</button>';
     h += '<div class="descbox" id="sdesc-' + s.id + '">' + s.desc + '</div>';
@@ -1076,6 +1431,9 @@ function openDet(sId, pId, isMatch) {
     h += '<div style="background:#F3F4F6;border-radius:8px;padding:8px;margin-bottom:10px;font-size:11px;color:#6B7280">'
        + 'この組み合わせはまだAI採点されていません（ルールベースのスコアです）。深夜バッチで自動的に精査されます。</div>';
   }
+  h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">'
+     + '<span style="font-size:12px;color:#6B7280">提案状況</span>' + propBtn_(p.id, s.id)
+     + '<span style="font-size:11px;color:#9CA3AF">クリックで 未提案→提案中→成約→見送り→単価NG</span></div>';
   h += '<div class="ssum">';
   h += '<div class="sblk"><div class="sblkv" style="color:'+col+'">' + sc.total + '</div><div class="sblkl">総合/100</div></div>';
   h += '<div class="sblk"><div class="sblkv" style="color:#0F9D6E">' + sc.skillPts + '</div><div class="sblkl">スキル/50</div></div>';
@@ -1142,6 +1500,13 @@ function genProposalMail(sId, pId) {
   var btn = document.getElementById('mailcopybtn');
   box.className = 'pr show'; box.textContent = '生成中...'; btn.style.display = 'none';
   var sc = getScore(s, p);
+  // ★提案文を生成した＝提案する意思がある、とみなして自動的に「提案中」に記録する
+  //   （営業に追加の操作をさせないための仕組み。手動で戻すことも可能）
+  if (getProp(p.id, s.id) === '未提案') {
+    setProp(p.id, s.id, '提案中', true);
+    var pb = document.querySelector('.propbtn[data-pid="' + p.id + '"][data-sid="' + s.id + '"]');
+    if (pb) { pb.textContent = '提案中'; pb.style.background = PROP_STYLE['提案中'].bg; pb.style.color = PROP_STYLE['提案中'].fg; }
+  }
   var prompt = 'あなたはSES業界で経験を積んだ営業担当者です。以下の要員情報・案件情報をもとに、'
     + '案件担当者（発注元のBPまたはエンド企業の窓口）へ送る「要員提案メール」を、件名を含めて作成してください。\n\n'
     + '【要員情報】\n名前: ' + s.name + '\nスキル: ' + (s.skills||[]).join('、')
@@ -1278,6 +1643,7 @@ function parseAll() {
       pp.skills_pref = cleanSkillArr_(pp.skills_pref);
     });
     _pendS = parsed.staff    || [];
+    _pendSFiles = []; _pendSUrls = [];
     var total = _pendP.length + _pendS.length;
     if (total === 0) { rs.textContent = '案件・要員情報が見つかりませんでした。'; return; }
     rs.className = 'pr'; cnt.textContent = '案件' + _pendP.length + '件・要員' + _pendS.length + '名を検出';
@@ -1321,6 +1687,14 @@ function parseAll() {
         sh += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:#DC2626;white-space:nowrap">BP名 必須</span>';
         sh += '<input type="text" id="ps' + j + '" value="' + (ps.source||'') + '" placeholder="例：ZINZAI" style="flex:1;padding:5px 8px;border:1.5px solid ' + bc2 + ';border-radius:6px;font-size:13px;background:#fff" oninput="this.style.borderColor=this.value?\'#0F9D6E\':\'#DC2626\'"></div>';
         sh += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + st2 + '</div>';
+        sh += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #E4E6EA">'
+            + '<div style="font-size:11px;color:#6B7280;margin-bottom:4px">スキルシート（任意）</div>'
+            + '<label style="font-size:12px;color:#D97706;font-weight:600;cursor:pointer;margin-right:12px">'
+            + '<span id="shn' + j + '">📎 ファイルを添付（xlsx / pdf）</span>'
+            + '<input type="file" accept=".xlsx,.xls,.pdf,.docx" style="display:none" onchange="pickSheet(' + j + ',this)">'
+            + '</label>'
+            + '<input type="text" id="shu' + j + '" placeholder="🔗 または共有URLを貼り付け" style="width:100%;margin-top:5px;padding:5px 8px;border:1px solid #E4E6EA;border-radius:6px;font-size:12px;background:#fff">'
+            + '</div>';
         if (ps.desc) sh += '<div style="font-size:11px;color:#7C3AED;margin-top:6px">✓ 概要文を抽出しました（' + ps.desc.length + '文字）</div>';
         sh += '</div>';
       }
@@ -1342,20 +1716,54 @@ function confirmAdd() {
   for (var j = 0; j < _pendS.length; j++) {
     var el2 = document.getElementById('ps' + j);
     if (el2) { var v2 = el2.value.trim(); if (!v2) { el2.style.borderColor='#DC2626'; hasErr=true; } else { _pendS[j].source=v2; } }
+    var eu = document.getElementById('shu' + j);
+    if (eu && eu.value.trim()) _pendSUrls[j] = eu.value.trim();   // リンクで来たスキルシート
   }
   if (hasErr) { alert('BP名が未入力の項目があります。赤枠の欄を入力してください。'); return; }
 
   document.getElementById('allprev').style.display = 'none';
   var rs = document.getElementById('allpr'); rs.className = 'pr show'; rs.textContent = '最新データを確認中...';
   var today = new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit'});
-  var addP=0, addS=0, savP=0, savS=0;
+  var addP=0, addS=0, savP=0, savS=0, upSheets=0;
 
   var doSave = function(type, item, cb) {
     if (GAS_URL) {
       fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({type:type,record:item})})
-        .then(function() { cb(true); }).catch(function() { cb(false); });
+        .then(function(r) { return r.json(); })
+        .then(function(d) { cb(true, d && d.id); }).catch(function() { cb(false); });
     } else { cb(false); }
   };
+
+  // 要員登録の直後に、添付されたスキルシートをDriveへアップロードする
+  var upQ = 0;
+  function uploadPending(idx, serverId, item, next) {
+    if (!GAS_URL || !serverId) { next(); return; }
+    // ① リンクで共有された場合：URLをそのまま登録
+    var u = _pendSUrls[idx];
+    if (u) {
+      fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({ type:'sheeturl', staffId: serverId, url: u })
+      }).then(function() { item.sheet_url = u; upSheets++; next(); }).catch(function() { next(); });
+      return;
+    }
+    // ② ファイル添付の場合：Driveへアップロード
+    var f = _pendSFiles[idx];
+    if (!f) { next(); return; }
+    upQ++;
+    var rd = new FileReader();
+    rd.onload = function() {
+      fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({ type:'upload', staffId: serverId, staffName: item.name,
+          source: item.source, filename: f.name, mimeType: f.type,
+          dataB64: String(rd.result).split(',')[1] })
+      }).then(function(r){ return r.json(); }).then(function(d) {
+        if (d && d.url) { item.sheet_url = d.url; upSheets++; }
+        next();
+      }).catch(function() { next(); });
+    };
+    rd.onerror = function() { next(); };
+    rd.readAsDataURL(f);
+  }
 
   // ID重複対策：追加処理の直前にサーバーの最新データを取得し、他の担当者が
   // 直前に登録したレコードのIDも踏まえて最大IDを再計算する（完全な排他制御ではないが、
@@ -1384,19 +1792,25 @@ function confirmAdd() {
   }
   function addNextS(si) {
     if (si >= _pendS.length) { done(); return; }
-    var item = _pendS[si];
+    var idx = si;
+    var item = _pendS[idx];
     maxSId += 1; item.id = maxSId;
     item.date = today;
     item.skills = cleanSkillArr_(item.skills);
     STAFF.push(item); addS++; si++;
-    doSave('staff', item, function(ok) { if(ok) savS++; addNextS(si); });
+    doSave('staff', item, function(ok, serverId) {
+      if (ok) savS++;
+      if (serverId) item.id = serverId;   // GASが返した実際の行IDに合わせる
+      uploadPending(idx, serverId, item, function() { addNextS(si); });
+    });
   }
   function done() {
-    applyPFilter(); applyRevProjFilter(); applySFilter(); applyMatchStaffFilter(); updateStats(); renderHot();
+    applyPFilter(); applyRevProjFilter(); applySFilter(); applyMatchStaffFilter(); updateStats(); renderHot(); renderBP();
     var msg = GAS_URL ? 'スプレッドシートにも保存しました（案件'+savP+'件・要員'+savS+'名）' : 'スプレッドシートへの保存は設定タブでGAS URLを設定後に有効になります';
     rs.textContent = '追加完了！案件'+addP+'件・要員'+addS+'名をDBに追加しました\n' + msg
-      + '\n※マッチ度はすぐルールベースで表示されます。AIによる精査は深夜バッチで自動実行され、翌朝スコアが更新されます。';
-    document.getElementById('allta').value = ''; _pendP = []; _pendS = [];
+      + (upSheets ? '\nスキルシート ' + upSheets + '件をGoogle Driveに保存しました' : '')
+      + '\n※マッチ度はすぐルールベースで表示されます。AIによる精査は深夜2時に自動実行され、翌朝スコアが更新されます。';
+    document.getElementById('allta').value = ''; _pendP = []; _pendS = []; _pendSFiles = []; _pendSUrls = [];
   }
   rs.textContent = 'DBに追加中...';
   refreshMaxIds(addNextP);
