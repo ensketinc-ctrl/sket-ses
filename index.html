@@ -48,6 +48,9 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .srcb{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:.3px}
 .srcb.ai{background:#EEF2FF;color:#4338CA}
 .srcb.rule{background:#F3F4F6;color:#6B7280}
+.ubadge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
+.hotsum{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;background:#fff;border-bottom:1px solid #E4E6EA}
+.hotsum span{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:700}
 .sc-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA}
 .sc-meta span{font-size:12px;color:#6B7280}.sc-meta strong{color:#1A1D23}
 .sc-act{margin-top:10px;display:flex;gap:6px}
@@ -151,20 +154,34 @@ textarea:focus{outline:none;border-color:#2563EB}
 <div id="tab-hot" class="sec on">
   <div class="lbar">
     <span style="font-size:12px;color:#6B7280;white-space:nowrap;align-self:center">マッチ度</span>
-    <select class="si" style="width:110px" onchange="hotState.min=parseInt(this.value);renderHot()">
-      <option value="75">75点以上</option>
-      <option value="65" selected>65点以上</option>
+    <select class="si" style="width:100px" onchange="hotState.min=parseInt(this.value);renderHot()">
+      <option value="80">80点以上</option>
+      <option value="75" selected>75点以上</option>
+      <option value="70">70点以上</option>
+      <option value="65">65点以上</option>
       <option value="55">55点以上</option>
-      <option value="45">45点以上</option>
+    </select>
+    <select class="si" style="width:150px" onchange="hotState.sort=this.value;renderHot()">
+      <option value="score">並び：マッチ度順</option>
+      <option value="profit">並び：粗利が大きい順</option>
+      <option value="close">並び：惜しい順（交渉圏）</option>
+    </select>
+    <select class="si" style="width:170px" onchange="hotState.unit=this.value;renderHot()">
+      <option value="">単価：全て表示</option>
+      <option value="fit">単価内（即提案）のみ</option>
+      <option value="fitnego">単価内＋交渉圏（10万以内）</option>
+      <option value="nego">交渉圏（10万以内オーバー）のみ</option>
+      <option value="unknown">単価未定のみ</option>
     </select>
     <input class="si" style="flex:1;min-width:120px" placeholder="案件名・要員名・スキルで絞り込み..." oninput="hotState.q=this.value;renderHot()">
-    <select class="si" style="width:130px" onchange="hotState.src=this.value;renderHot()">
+    <select class="si" style="width:120px" onchange="hotState.src=this.value;renderHot()">
       <option value="">スコア:全て</option><option value="ai">AI採点済のみ</option><option value="rule">未採点(ルール)のみ</option>
     </select>
-    <select class="si" style="width:110px" onchange="hotState.limit=parseInt(this.value);renderHot()">
+    <select class="si" style="width:100px" onchange="hotState.limit=parseInt(this.value);renderHot()">
       <option value="30">上位30件</option><option value="60" selected>上位60件</option><option value="150">上位150件</option><option value="9999">全件</option>
     </select>
   </div>
+  <div class="hotsum" id="hotsum"></div>
   <div style="padding:8px 14px;font-size:12px;color:#6B7280;background:#fff;border-bottom:1px solid #E4E6EA" id="hotinfo"></div>
   <div class="lgrid" id="hotgrid"><div class="empty"><span class="spin"></span>計算中</div></div>
 </div>
@@ -627,6 +644,53 @@ function getScore(s, p) {
 }
 function scColor_(t) { return t >= 70 ? '#0F9D6E' : t >= 50 ? '#D97706' : '#6B7280'; }
 
+// ===========================================================================
+// 単価バッジ
+//   「単価オーバーでも提案が通ることがある」ため、除外はせず色分けして見せる。
+//   diff = 案件の上限単価 − 要員の希望単価
+//     +  … 粗利。そのまま提案できる
+//     -10万以内 … 交渉圏（実績上ここは通ることがある）
+//     -25万以内 … 要相談
+//     それ以上  … 現実的でない
+//     null      … 案件単価が「スキル見合い」等で未定 → 交渉余地は大きい
+// ===========================================================================
+function unitDiff_(s, p) {
+  var umax = (typeof p.unit_max === 'number' && p.unit_max > 0) ? p.unit_max : null;
+  var umin = (typeof s.unit_min === 'number' && s.unit_min > 0) ? s.unit_min : null;
+  if (umax === null || umin === null) return null;
+  return umax - umin;
+}
+// 'fit'(単価内) / 'nego'(交渉圏) / 'talk'(要相談) / 'over'(現実的でない) / 'unknown'(未定)
+function unitClass_(d) {
+  if (d === null) return 'unknown';
+  if (d >= 0)   return 'fit';
+  if (d >= -10) return 'nego';
+  if (d >= -25) return 'talk';
+  return 'over';
+}
+var UNIT_STYLE = {
+  fit:     { bg:'#E8F7F2', fg:'#0F7A57', icon:'●' },
+  nego:    { bg:'#FEF3C7', fg:'#B45309', icon:'●' },
+  talk:    { bg:'#FFEDD5', fg:'#C2410C', icon:'●' },
+  over:    { bg:'#FEE2E2', fg:'#B91C1C', icon:'●' },
+  unknown: { bg:'#F3F4F6', fg:'#4B5563', icon:'○' }
+};
+function unitLabel_(d) {
+  var c = unitClass_(d);
+  if (c === 'unknown') return '単価未定（交渉余地あり）';
+  if (c === 'fit')     return '粗利 +' + d + '万';
+  if (c === 'nego')    return '要交渉 ' + (-d) + '万オーバー';
+  if (c === 'talk')    return '要相談 ' + (-d) + '万オーバー';
+  return (-d) + '万オーバー';
+}
+function unitBadge_(s, p) {
+  var d = unitDiff_(s, p);
+  var c = unitClass_(d);
+  var st = UNIT_STYLE[c];
+  return '<span class="ubadge" style="background:' + st.bg + ';color:' + st.fg + '">'
+    + st.icon + ' ' + unitLabel_(d) + '</span>';
+}
+
 function doTab(el) { var name = el.getAttribute("data-tab");
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('on'); });
   document.querySelectorAll('.sec').forEach(function(s2) { s2.classList.remove('on'); });
@@ -662,7 +726,8 @@ function mkCard(r, i, sId, pId, isMatch) {
   var h = '<div class="sc" style="' + (st==='closed'?'opacity:0.4':'') + '" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">';
   h += '<div class="sc-top"><div class="sc-rank ' + rc + '">' + (i+1) + '</div><div class="sc-name">' + obj.name + '</div>';
   h += '<div class="sc-score" style="color:' + col + '">' + r.total + '<span style="font-size:12px;font-weight:400">点</span></div></div>';
-  h += '<div style="margin-bottom:6px">' + srcBadge_(r) + (r.src==='ai' && r.reason ? '<span style="font-size:11px;color:#6B7280;margin-left:6px">' + r.reason + '</span>' : '') + '</div>';
+  h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">' + unitBadge_(r.s, r.p) + srcBadge_(r) + '</div>';
+  if (r.src === 'ai' && r.reason) h += '<div style="font-size:11px;color:#4B5563;background:#F7F8FA;border-radius:6px;padding:6px;margin-bottom:6px">' + r.reason + '</div>';
   h += bar_('スキル', r.skillPts, 50, col);
   h += bar_('単価',   r.unitPts,  20, col);
   h += bar_('時期',   r.timePts,  15, col);
@@ -682,13 +747,15 @@ function mkCard(r, i, sId, pId, isMatch) {
 }
 
 // ===========================================================================
-// 🔥 ホットマッチ：全案件 × 全要員を横断し、スコアの高い組み合わせだけを抽出
+// 🔥 ホットマッチ：全案件 × 全要員を横断し、スコアの高い組み合わせを抽出
+//   単価オーバーでも提案が通ることがあるため、除外はせず「色分け＋並べ替え」で見せる
 // ===========================================================================
-var hotState = { min: 65, q: '', src: '', limit: 60 };
+var hotState = { min: 75, q: '', src: '', unit: '', sort: 'score', limit: 60 };
 
 function renderHot() {
   var grid = document.getElementById('hotgrid');
   var info = document.getElementById('hotinfo');
+  var sum  = document.getElementById('hotsum');
   if (!grid) return;
   if (!PROJECTS.length || !STAFF.length) { grid.innerHTML = '<div class="empty">データがありません</div>'; return; }
 
@@ -701,34 +768,77 @@ function renderHot() {
       var r = getScore(s, p);
       if (r.src === 'ai') aiCnt++;
       if (r.total < hotState.min) return;
-      if (hotState.src && r.src !== hotState.src) return;
-      if (hotState.q) {
-        var q = hotState.q.toLowerCase();
-        var hay = (p.name + ' ' + s.name + ' ' + (p.skills||[]).join(' ') + ' ' + (s.skills||[]).join(' ')).toLowerCase();
-        if (hay.indexOf(q) < 0) return;
-      }
-      all.push({ p: p, s: s, r: r });
+      var d = unitDiff_(s, p), uc = unitClass_(d);
+      all.push({ p: p, s: s, r: r, d: d, uc: uc });
     });
   });
-  all.sort(function(a, b) { return b.r.total - a.r.total; });
+
+  // 単価区分ごとの件数（フィルタ前の全体像を常に見せる）
+  var seg = { fit:0, nego:0, talk:0, over:0, unknown:0 };
+  all.forEach(function(x) { seg[x.uc]++; });
+  sum.innerHTML =
+      '<span style="background:#E8F7F2;color:#0F7A57">● 単価内（即提案）' + seg.fit + '</span>'
+    + '<span style="background:#FEF3C7;color:#B45309">● 交渉圏（10万以内）' + seg.nego + '</span>'
+    + '<span style="background:#FFEDD5;color:#C2410C">● 要相談（25万以内）' + seg.talk + '</span>'
+    + '<span style="background:#FEE2E2;color:#B91C1C">● 大幅超過 ' + seg.over + '</span>'
+    + '<span style="background:#F3F4F6;color:#4B5563">○ 単価未定 ' + seg.unknown + '</span>';
+
+  // 絞り込み
+  var list = all.filter(function(x) {
+    if (hotState.src && x.r.src !== hotState.src) return false;
+    if (hotState.unit === 'fit'     && x.uc !== 'fit') return false;
+    if (hotState.unit === 'nego'    && x.uc !== 'nego') return false;
+    if (hotState.unit === 'unknown' && x.uc !== 'unknown') return false;
+    if (hotState.unit === 'fitnego' && x.uc !== 'fit' && x.uc !== 'nego') return false;
+    if (hotState.q) {
+      var q = hotState.q.toLowerCase();
+      var hay = (x.p.name + ' ' + x.s.name + ' ' + x.s.source + ' ' + (x.p.skills||[]).join(' ') + ' ' + (x.s.skills||[]).join(' ')).toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+
+  // 並べ替え
+  if (hotState.sort === 'profit') {
+    // 粗利が大きい順（単価未定・オーバーは後ろへ）
+    list.sort(function(a, b) {
+      var av = (a.d === null || a.d < 0) ? -9999 : a.d;
+      var bv = (b.d === null || b.d < 0) ? -9999 : b.d;
+      if (bv !== av) return bv - av;
+      return b.r.total - a.r.total;
+    });
+  } else if (hotState.sort === 'close') {
+    // 惜しい順：オーバー額が小さいものを上に（＝押せば通る可能性が高い順）
+    list.sort(function(a, b) {
+      var av = (a.d === null) ? -999 : (a.d < 0 ? a.d : 999);  // オーバーのみ対象。単価内は後ろ
+      var bv = (b.d === null) ? -999 : (b.d < 0 ? b.d : 999);
+      if (bv !== av) return bv - av;
+      return b.r.total - a.r.total;
+    });
+  } else {
+    list.sort(function(a, b) { return b.r.total - a.r.total; });
+  }
+
   var total = ps.length * ss.length;
   info.innerHTML = '有効案件 <strong>' + ps.length + '</strong>件 × 有効要員 <strong>' + ss.length + '</strong>名 = '
-    + total.toLocaleString() + 'ペアを評価 ／ <strong>' + hotState.min + '点以上：' + all.length + '件</strong>'
-    + ' ／ AI採点済 ' + aiCnt.toLocaleString() + 'ペア（深夜バッチで自動更新）';
+    + total.toLocaleString() + 'ペア中、<strong>' + hotState.min + '点以上：' + all.length + '件</strong>'
+    + (list.length !== all.length ? '（絞り込み後 <strong>' + list.length + '件</strong>）' : '')
+    + ' ／ AI採点済 ' + aiCnt.toLocaleString() + 'ペア'
+    + '<div style="margin-top:3px;font-size:11px;color:#9CA3AF">※単価オーバーでも提案が通る場合があるため、初期状態では除外していません</div>';
 
-  var shown = all.slice(0, hotState.limit);
-  if (!shown.length) { grid.innerHTML = '<div class="empty">' + hotState.min + '点以上の組み合わせはありません。閾値を下げてください。</div>'; return; }
+  var shown = list.slice(0, hotState.limit);
+  if (!shown.length) { grid.innerHTML = '<div class="empty">条件に合う組み合わせがありません。マッチ度や単価の条件を緩めてください。</div>'; return; }
 
   grid.innerHTML = shown.map(function(x, i) {
     var r = x.r, col = scColor_(r.total);
     var tags = r.hit.slice(0, 6).map(function(sk) { return '<span class="stag hit">✓ ' + sk + '</span>'; }).join('')
              + (r.part||[]).slice(0, 3).map(function(sk) { return '<span class="stag part">△ ' + sk + '</span>'; }).join('');
     var h = '<div class="card" style="cursor:pointer;border-left:4px solid ' + col + '" onclick="openDet(' + x.s.id + ',' + x.p.id + ',true)">';
-    h += '<div class="ct"><div class="cn" style="font-size:12px;color:#6B7280;margin-bottom:2px">#' + (i+1) + '</div>';
+    h += '<div class="ct"><div style="font-size:12px;color:#6B7280">#' + (i+1) + '</div>';
     h += '<div style="font-size:22px;font-weight:800;color:' + col + '">' + r.total + '<span style="font-size:11px;font-weight:400">点</span></div></div>';
     h += '<div style="font-size:13px;font-weight:700;line-height:1.4;margin-bottom:2px">' + x.p.name + '</div>';
     h += '<div style="font-size:12px;color:#6B7280;margin-bottom:6px">⇔ <strong style="color:#7C3AED">' + x.s.name + '</strong>（' + x.s.source + '）</div>';
-    h += '<div style="margin-bottom:6px">' + srcBadge_(r) + '</div>';
+    h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">' + unitBadge_(x.s, x.p) + srcBadge_(r) + '</div>';
     if (r.src === 'ai' && r.reason) h += '<div style="font-size:11px;color:#4B5563;background:#F7F8FA;border-radius:6px;padding:6px;margin-bottom:6px">' + r.reason + '</div>';
     h += '<div class="sc-tags">' + tags + '</div>';
     h += '<div class="mr" style="margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA">';
@@ -973,6 +1083,14 @@ function openDet(sId, pId, isMatch) {
   h += '<div class="sblk"><div class="sblkv" style="color:#D97706">' + sc.timePts + '</div><div class="sblkl">時期/15</div></div>';
   h += '<div class="sblk"><div class="sblkv" style="color:#7C3AED">' + sc.workPts + '</div><div class="sblkl">働き方/15</div></div>';
   h += '</div>';
+  // 単価の商談可否を明示（オーバーでも通ることがあるので、隠さず数字で見せる）
+  var _d = unitDiff_(s, p), _uc = unitClass_(_d), _us = UNIT_STYLE[_uc];
+  h += '<div style="background:' + _us.bg + ';color:' + _us.fg + ';border-radius:8px;padding:9px 12px;margin:8px 0;font-size:12px;font-weight:700">'
+     + _us.icon + ' ' + unitLabel_(_d)
+     + '<span style="font-weight:400;margin-left:8px">案件 ' + p.unit + ' ／ 要員希望 ' + s.unit_min + '万〜</span>'
+     + (_uc === 'nego' ? '<div style="font-weight:400;font-size:11px;margin-top:3px">10万以内のオーバーです。交渉次第で通る可能性があります。</div>' : '')
+     + (_uc === 'unknown' ? '<div style="font-weight:400;font-size:11px;margin-top:3px">案件単価が「スキル見合い」等で未定です。交渉余地が大きい可能性があります。</div>' : '')
+     + '</div>';
   h += '<div class="dsec"><div class="dsh">要員情報</div>';
   h += '<div class="drow"><span class="dlbl">氏名</span><span class="dval">' + s.name + '</span></div>';
   h += '<div class="drow"><span class="dlbl">所在地</span><span class="dval">' + (s.location||'不明') + '</span></div>';
