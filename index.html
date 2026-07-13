@@ -164,7 +164,8 @@ textarea:focus{outline:none;border-color:#2563EB}
       <option value="65">65点以上</option>
       <option value="55">55点以上</option>
     </select>
-    <select class="si" style="width:150px" onchange="hotState.sort=this.value;renderHot()">
+    <select class="si" style="width:170px" onchange="hotState.sort=this.value;renderHot()">
+      <option value="priority" selected>並び：提案優先度順 ★</option>
       <option value="score">並び：マッチ度順</option>
       <option value="profit">並び：粗利が大きい順</option>
       <option value="close">並び：惜しい順（交渉圏）</option>
@@ -741,6 +742,12 @@ function cycleProp(btn) {
 //   ・BP単位で表示し、そのBPに未配信の案件をまとめて1つの文面にできる
 //   ・配信履歴は (案件ID × BP名) のペア単位で記録（1案件を複数BPに流すため）
 // ===========================================================================
+// ★BPへの一斉送信機能のON/OFF
+//   false … 閲覧のみ（コピー不可・送信済み記録もされない）＝現在ステイ中
+//   true  … コピー＆送信済み記録が有効になる
+//   ※再開するときは、この1行を true にして push するだけ
+var BP_SEND_ENABLED = false;
+
 var BP_THRESHOLD = 0.5;
 var bpState = { mode: 'unsent', q: '' };
 
@@ -787,8 +794,10 @@ function renderBP() {
   info.innerHTML = 'BP <strong>' + bps.length + '</strong>社 ／ 有効案件 <strong>' + ps.length + '</strong>件 ／ 有効要員 <strong>' + st.length + '</strong>名'
     + ' ／ <strong style="color:#7C3AED">未送信：案件 ' + totP + '件・要員 ' + totS + '名</strong>'
     + ' ／ <strong style="color:#DC2626">流せるBPがない案件: ' + orphan.length + '件</strong>'
-    + '<div style="margin-top:3px;font-size:11px;color:#9CA3AF">BPには案件情報と要員情報を一斉に送ります。'
-    + '案件＝「対応できる人はいますか？」／要員＝「この人に合う案件はありますか？」</div>';
+    + (BP_SEND_ENABLED
+        ? '<div style="margin-top:3px;font-size:11px;color:#9CA3AF">送る文面は一覧形式です（案件詳細・経歴は含みません）。詳細は先方からの問い合わせ後に個別送付してください。</div>'
+        : '<div style="margin-top:6px;padding:8px;background:#FEF3C7;border-radius:6px;font-size:11px;color:#B45309;font-weight:600">'
+          + '⚠ 送付機能は現在停止中です（閲覧のみ）。再開するには index.html の <code>BP_SEND_ENABLED = false</code> を <code>true</code> に変更してください。</div>');
 
   if (bpState.mode === 'none') {
     if (!orphan.length) { grid.innerHTML = '<div class="empty">流せるBPがない案件はありません</div>'; return; }
@@ -798,7 +807,7 @@ function renderBP() {
       h += '<div class="sc-tags">' + (p.skills||[]).map(function(s){ return '<span class="stag miss">' + s + '</span>'; }).join('') + '</div>';
       h += '<div class="mr" style="margin-top:6px"><div class="meta">単価: <strong>' + p.unit + '</strong></div><div class="meta">案件元: <strong>' + p.source + '</strong></div></div>';
       h += '<div style="font-size:12px;color:#DC2626;background:#FEF2F2;border-radius:6px;padding:8px;margin-top:6px">⚠ このスキルの要員を持つBPがありません。<strong>新規開拓が必要です。</strong></div>';
-      h += '<button class="btn btn-d" style="margin-top:8px;width:100%" onclick="copyOneProj(' + p.id + ')">📋 この案件の文面をコピー（新規BP打診用）</button>';
+      if (BP_SEND_ENABLED) h += '<button class="btn btn-d" style="margin-top:8px;width:100%" onclick="copyOneProj(' + p.id + ')">📋 この案件の文面をコピー（新規BP打診用）</button>';
       h += '</div>';
       return h;
     }).join('');
@@ -843,15 +852,20 @@ function renderBP() {
     });
     if (c.sfU.length > 5) h += '<div style="font-size:11px;color:#9CA3AF;padding:3px 0">・ほか' + (c.sfU.length - 5) + '名</div>';
 
-    h += '<div style="display:flex;gap:6px;margin-top:10px">';
-    if (c.pjU.length || c.sfU.length) {
-      h += '<button class="btn btn-p" style="flex:1" onclick="copyAllForBP(\'' + esc + '\',\'both\')">📋 案件＋要員をまとめてコピー</button>';
-    }
-    h += '</div>';
-    if (c.pjU.length && c.sfU.length) {
-      h += '<div style="display:flex;gap:6px;margin-top:5px">'
-         + '<button class="btn btn-d" style="flex:1;font-size:11px" onclick="copyAllForBP(\'' + esc + '\',\'proj\')">案件だけ</button>'
-         + '<button class="btn btn-d" style="flex:1;font-size:11px" onclick="copyAllForBP(\'' + esc + '\',\'staff\')">要員だけ</button></div>';
+    if (BP_SEND_ENABLED) {
+      h += '<div style="display:flex;gap:6px;margin-top:10px">';
+      if (c.pjU.length || c.sfU.length) {
+        h += '<button class="btn btn-p" style="flex:1" onclick="copyAllForBP(\'' + esc + '\',\'both\')">📋 案件＋要員をまとめてコピー</button>';
+      }
+      h += '</div>';
+      if (c.pjU.length && c.sfU.length) {
+        h += '<div style="display:flex;gap:6px;margin-top:5px">'
+           + '<button class="btn btn-d" style="flex:1;font-size:11px" onclick="copyAllForBP(\'' + esc + '\',\'proj\')">案件だけ</button>'
+           + '<button class="btn btn-d" style="flex:1;font-size:11px" onclick="copyAllForBP(\'' + esc + '\',\'staff\')">要員だけ</button></div>';
+      }
+    } else {
+      h += '<div style="margin-top:10px;padding:8px;background:#F3F4F6;border-radius:6px;font-size:11px;color:#6B7280;text-align:center">'
+         + '送付機能は現在停止中です（閲覧のみ）</div>';
     }
     h += '</div>';
     return h;
@@ -859,30 +873,40 @@ function renderBP() {
 }
 
 // 1件ぶんの文面
+// ===========================================================================
+// BPに送る文面（★一覧形式・詳細は含めない）
+//
+// 【重要／なぜ desc を送らないか】
+//   案件のF列(元内容)・要員のE列(元内容)には、BPから受け取った原文がそのまま
+//   入っており、以下の内部情報が含まれている：
+//     ・案件：「商流：エンド→当社」「条件：中間割」「商流制限」「案件No」「営業コメント」
+//             → 中間マージンの存在・案件元の特定・中抜きリスク
+//     ・要員：「PHP案件: 60万円 / PL案件: 75万円」等のマージン前の生単価
+//             「実質的に独占に近い形でご提案可能です」等の所属元BPの営業トーク
+//             「所属：弊社正社員」（この"弊社"はSKETではない）
+//   これを他BPに転送すると重大な情報漏洩になるため、
+//   構造化済みの項目だけを送る。詳細は問い合わせが来てから個別に送ること。
+// ===========================================================================
 function projText_(p) {
-  var t = '【案件名】' + p.name + '\n';
-  t += '【必須スキル】' + (p.skills || []).join('、') + '\n';
-  if ((p.skills_pref || []).length) t += '【尚可スキル】' + p.skills_pref.join('、') + '\n';
-  t += '【単価】' + p.unit + '\n';
-  t += '【勤務形態】' + p.remote + (p.location ? '（' + p.location + '）' : '') + '\n';
-  t += '【稼働開始】' + p.start + '\n';
-  if (p.desc) t += '【詳細】\n' + p.desc + '\n';
+  var t = '◆ ' + p.name + '\n';
+  t += '　必須：' + (p.skills || []).join('、') + '\n';
+  if ((p.skills_pref || []).length) t += '　尚可：' + p.skills_pref.join('、') + '\n';
+  t += '　単価：' + p.unit + '　／　' + p.remote + (p.location ? '（' + p.location + '）' : '') + '\n';
+  t += '　稼働：' + p.start + '\n';
   return t;
 }
 function staffText_(s) {
   var wp = s.work_pref === 'remote' ? 'リモート希望' : s.work_pref === 'onsite' ? '常駐希望' : '出社も可';
-  var t = '【要員】' + s.name + '\n';
-  t += '【スキル】' + (s.skills || []).join('、') + '\n';
-  t += '【希望単価】' + s.unit_min + '万〜\n';
-  t += '【稼働開始】' + s.start + '\n';
-  t += '【勤務地】' + (s.location || '要相談') + '（' + wp + '）\n';
-  if (s.desc) t += '【経歴】\n' + String(s.desc).slice(0, 800) + '\n';
-  t += s.sheet_url ? '【スキルシート】別途お送りします\n' : '';
+  var t = '◆ ' + s.name + '\n';
+  t += '　スキル：' + (s.skills || []).join('、') + '\n';
+  t += '　単価：' + s.unit_min + '万〜　／　稼働：' + s.start + '\n';
+  t += '　勤務地：' + (s.location || '要相談') + '（' + wp + '）\n';
   return t;
 }
 
 // BPへ一斉送信（案件＋要員／案件のみ／要員のみ）
 function copyAllForBP(bpName, kind) {
+  if (!BP_SEND_ENABLED) { alert('送付機能は現在停止中です'); return; }
   var bp = BPS.filter(function(b) { return b.name === bpName; })[0];
   if (!bp) return;
   var ps = (kind === 'staff') ? [] : PROJECTS.filter(function(p) {
@@ -900,13 +924,13 @@ function copyAllForBP(bpName, kind) {
   var t = 'お世話になっております。株式会社SKETです。\n案件・要員情報をお送りいたします。\n\n';
   if (ps.length) {
     t += '━━━━━━━━━━━━━━━\n【案件情報】' + ps.length + '件\n━━━━━━━━━━━━━━━\n';
-    t += 'ご対応可能な要員がいらっしゃいましたら、スキルシートをお送りください。\n\n';
-    ps.forEach(function(p, i) { t += '◆' + (i+1) + '\n' + projText_(p) + '\n'; });
+    ps.forEach(function(p) { t += projText_(p) + '\n'; });
+    t += 'ご対応可能な要員がいらっしゃいましたら、スキルシートをお送りください。\n詳細（業務内容・条件等）はご連絡いただければ個別にお送りします。\n\n';
   }
   if (ss.length) {
     t += '━━━━━━━━━━━━━━━\n【要員情報】' + ss.length + '名\n━━━━━━━━━━━━━━━\n';
-    t += 'ご紹介可能な案件がございましたらご連絡ください。\n\n';
-    ss.forEach(function(s, i) { t += '◆' + (i+1) + '\n' + staffText_(s) + '\n'; });
+    ss.forEach(function(s) { t += staffText_(s) + '\n'; });
+    t += 'ご紹介可能な案件がございましたらご連絡ください。\nスキルシートはご希望に応じて個別にお送りします。\n\n';
   }
   t += '━━━━━━━━━━━━━━━\n引き続きよろしくお願いいたします。\n株式会社SKET';
 
@@ -925,11 +949,12 @@ function copyAllForBP(bpName, kind) {
 
 // 新規BP打診用（1案件のみ・記録はしない）
 function copyOneProj(pid) {
+  if (!BP_SEND_ENABLED) { alert('送付機能は現在停止中です'); return; }
   var p = PROJECTS.filter(function(x) { return x.id === pid; })[0];
   if (!p) return;
   var t = 'お世話になっております。株式会社SKETです。\nご紹介可能な案件をお送りいたします。\n\n'
         + projText_(p)
-        + '\nご対応可能な要員がいらっしゃいましたら、スキルシートをお送りください。\nよろしくお願いいたします。';
+        + '\nご対応可能な要員がいらっしゃいましたら、スキルシートをお送りください。\n詳細（業務内容・条件等）はご連絡いただければ個別にお送りします。\n\n株式会社SKET';
   navigator.clipboard.writeText(t).then(function() { alert('文面をコピーしました。'); });
 }
 
@@ -1040,6 +1065,74 @@ function unitBadge_(s, p) {
     + st.icon + ' ' + unitLabel_(d) + '</span>';
 }
 
+// ===========================================================================
+// 提案優先度（0〜100）
+//   「マッチ度が高い順」ではなく「実際に成約まで行きやすい順」に並べるための指標。
+//   マッチ度が95点でも単価が55万オーバーなら提案しても通らない。
+//   逆に85点でも粗利が出て即日稼働できるなら今すぐ動ける。
+//   → その差を1つの数字にする。
+//   ※スキルシートは基本的に揃っている前提のため、判定材料には含めない。
+//
+//   【配点】マッチ度 0〜60 ／ 単価が通るか -35〜+20 ／ 粗利 0〜18
+//           稼働時期 -12〜+10 ／ 自社要員 +8 ／ 案件の鮮度 -8〜+7  （上限100）
+// ===========================================================================
+function calcPriority(s, p, r) {
+  var pts = [], reasons = [];
+
+  // ① マッチ度（0〜60点）… ベース
+  pts.push(Math.round((r.total || 0) * 0.6));
+
+  // ② 単価が通るか（-35〜+20点）… 通らなければ提案しても意味がない
+  var d = unitDiff_(s, p), uc = unitClass_(d);
+  if (uc === 'fit')          { pts.push(20); }
+  else if (uc === 'nego')    { pts.push(6);   reasons.push({t:'要交渉 ' + (-d) + '万', c:'nego'}); }
+  else if (uc === 'talk')    { pts.push(-12); reasons.push({t:'単価要相談', c:'talk'}); }
+  else if (uc === 'over')    { pts.push(-35); reasons.push({t:'単価オーバー', c:'over'}); }
+  else                       { pts.push(0);   reasons.push({t:'単価未定', c:'unknown'}); }
+
+  // ③ 粗利の大きさ（0〜18点）… 30万で満点
+  if (d !== null && d > 0) {
+    pts.push(Math.min(18, Math.round(d / 1.7)));
+    if (d >= 15) reasons.push({t:'粗利+' + d + '万', c:'fit'});
+  }
+
+  // ④ 稼働時期（-12〜+10点）
+  var pm = startMonth_(p.start), sm = startMonth_(s.start);
+  if (pm !== null && sm !== null) {
+    var lag = sm - pm;
+    if (lag <= 0)      { pts.push(10); if (sm <= 0) reasons.push({t:'即日可', c:'fit'}); }
+    else if (lag === 1) pts.push(0);
+    else                { pts.push(-12); reasons.push({t:'稼働が' + lag + 'ヶ月遅い', c:'talk'}); }
+  }
+
+  // ⑤ 自社要員（+8点）… 粗利がまるごと自社に入る
+  if (s.source === 'SKET') { pts.push(8); reasons.push({t:'自社要員', c:'own'}); }
+
+  // ⑥ 案件の鮮度（-8〜+7点）… 古い案件は埋まっている可能性
+  var fr = getFresh(p.date || '');
+  if (fr.cls === 'f1')      pts.push(7);
+  else if (fr.cls === 'f2') pts.push(3);
+  else if (fr.cls === 'f4') { pts.push(-8); reasons.push({t:'案件が古い', c:'talk'}); }
+
+  var total = pts.reduce(function(a, b) { return a + b; }, 0);
+  return { score: Math.max(0, Math.min(100, total)), reasons: reasons };
+}
+
+var PRI_CHIP = {
+  fit:     'background:#E8F7F2;color:#0F7A57',
+  own:     'background:#EDE9FE;color:#5B21B6',
+  nego:    'background:#FEF3C7;color:#B45309',
+  talk:    'background:#FFEDD5;color:#C2410C',
+  over:    'background:#FEE2E2;color:#B91C1C',
+  unknown: 'background:#F3F4F6;color:#4B5563'
+};
+function priChips_(pr) {
+  return pr.reasons.map(function(x) {
+    return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;' + (PRI_CHIP[x.c] || PRI_CHIP.unknown) + '">' + x.t + '</span>';
+  }).join('');
+}
+function priColor_(v) { return v >= 75 ? '#DC2626' : v >= 60 ? '#EA580C' : v >= 45 ? '#D97706' : '#6B7280'; }
+
 function doTab(el) { var name = el.getAttribute("data-tab");
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('on'); });
   document.querySelectorAll('.sec').forEach(function(s2) { s2.classList.remove('on'); });
@@ -1099,7 +1192,7 @@ function mkCard(r, i, sId, pId, isMatch) {
 // 🔥 ホットマッチ：全案件 × 全要員を横断し、スコアの高い組み合わせを抽出
 //   単価オーバーでも提案が通ることがあるため、除外はせず「色分け＋並べ替え」で見せる
 // ===========================================================================
-var hotState = { min: 75, q: '', src: '', unit: '', prop: '未提案', sort: 'score', limit: 60 };
+var hotState = { min: 75, q: '', src: '', unit: '', prop: '未提案', sort: 'priority', limit: 60 };
 
 function renderHot() {
   var grid = document.getElementById('hotgrid');
@@ -1118,7 +1211,7 @@ function renderHot() {
       if (r.src === 'ai') aiCnt++;
       if (r.total < hotState.min) return;
       var d = unitDiff_(s, p), uc = unitClass_(d);
-      all.push({ p: p, s: s, r: r, d: d, uc: uc });
+      all.push({ p: p, s: s, r: r, d: d, uc: uc, pri: calcPriority(s, p, r) });
     });
   });
 
@@ -1152,7 +1245,12 @@ function renderHot() {
   });
 
   // 並べ替え
-  if (hotState.sort === 'profit') {
+  if (hotState.sort === 'priority') {
+    list.sort(function(a, b) {
+      if (b.pri.score !== a.pri.score) return b.pri.score - a.pri.score;
+      return b.r.total - a.r.total;
+    });
+  } else if (hotState.sort === 'profit') {
     // 粗利が大きい順（単価未定・オーバーは後ろへ）
     list.sort(function(a, b) {
       var av = (a.d === null || a.d < 0) ? -9999 : a.d;
@@ -1186,11 +1284,16 @@ function renderHot() {
     var r = x.r, col = scColor_(r.total);
     var tags = r.hit.slice(0, 6).map(function(sk) { return '<span class="stag hit">✓ ' + sk + '</span>'; }).join('')
              + (r.part||[]).slice(0, 3).map(function(sk) { return '<span class="stag part">△ ' + sk + '</span>'; }).join('');
-    var h = '<div class="card" style="cursor:pointer;border-left:4px solid ' + col + '" onclick="openDet(' + x.s.id + ',' + x.p.id + ',true)">';
-    h += '<div class="ct"><div style="font-size:12px;color:#6B7280">#' + (i+1) + '</div>';
-    h += '<div style="font-size:22px;font-weight:800;color:' + col + '">' + r.total + '<span style="font-size:11px;font-weight:400">点</span></div></div>';
+    var pc = priColor_(x.pri.score);
+    var h = '<div class="card" style="cursor:pointer;border-left:4px solid ' + pc + '" onclick="openDet(' + x.s.id + ',' + x.p.id + ',true)">';
+    h += '<div class="ct"><div style="font-size:12px;color:#6B7280;font-weight:700">#' + (i+1) + '</div>';
+    h += '<div style="text-align:right">'
+       + '<div style="font-size:10px;color:#9CA3AF;line-height:1">提案優先度</div>'
+       + '<div style="font-size:24px;font-weight:800;color:' + pc + ';line-height:1.1">' + x.pri.score + '</div>'
+       + '<div style="font-size:10px;color:' + col + ';font-weight:700">マッチ ' + r.total + '点</div></div></div>';
     h += '<div style="font-size:13px;font-weight:700;line-height:1.4;margin-bottom:2px">' + x.p.name + '</div>';
     h += '<div style="font-size:12px;color:#6B7280;margin-bottom:6px">⇔ <strong style="color:#7C3AED">' + x.s.name + '</strong>（' + x.s.source + '）</div>';
+    h += '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">' + priChips_(x.pri) + '</div>';
     h += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;align-items:center">' + unitBadge_(x.s, x.p) + srcBadge_(r) + propBtn_(x.p.id, x.s.id) + '</div>';
     if (r.src === 'ai' && r.reason) h += '<div style="font-size:11px;color:#4B5563;background:#F7F8FA;border-radius:6px;padding:6px;margin-bottom:6px">' + r.reason + '</div>';
     h += '<div class="sc-tags">' + tags + '</div>';
