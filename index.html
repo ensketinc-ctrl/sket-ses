@@ -51,6 +51,8 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .ubadge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
 .propbtn{font-size:11px;padding:4px 12px;border-radius:20px;font-weight:700;border:none;cursor:pointer}
 .propbtn:hover{filter:brightness(0.94)}
+.propwrap{display:inline-flex;align-items:center;gap:5px}
+.propdate{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700;white-space:nowrap}
 .hotsum{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;background:#fff;border-bottom:1px solid #E4E6EA}
 .hotsum span{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:700}
 .sc-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid #E4E6EA}
@@ -922,19 +924,87 @@ function setProp(pid, sid, status, silent) {
     body: JSON.stringify({ type:'propose', pid: pid, sid: sid, status: status }) })
     .catch(function() { if (!silent) alert('提案ステータスの保存に失敗しました'); });
 }
-function propBtn_(pid, sid) {
+// ===========================================================================
+// ★提案日の表示（現場要望②）
+//   GAS側はマッチスコアG列に提案日を保存済みで、APIも sd として返していた。
+//   画面が受け取っていながら描画していなかっただけなので、ここで出す。
+//   あわせて経過日数を出し、滞留を色で警告する。
+//   しきい値はGASの営業タスクメールの滞留アラート（7日）と揃えてある。
+// ===========================================================================
+var PROP_STALE_WARN  = 7;    // これ以上で橙
+var PROP_STALE_ALERT = 14;   // これ以上で赤
+
+function getPropDate(pid, sid) {
+  var v = SCORES[pid + '_' + sid];
+  return (v && v.sd) ? String(v.sd).trim() : '';
+}
+
+// 'yyyy/MM/dd'（GAS）と '2026/9/13'（ja-JP ロケール）の両方を受ける
+function parseDate_(str) {
+  if (!str) return null;
+  var m = String(str).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (!m) return null;
+  var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function propDays_(str) {
+  var d = parseDate_(str);
+  if (!d) return null;
+  var t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.floor((t - d) / 86400000);
+}
+
+function propDateChip_(pid, sid) {
+  var st = getProp(pid, sid);
+  var raw = getPropDate(pid, sid);
+  if (!raw || st === '未提案') return '';
+
+  var d = parseDate_(raw);
+  var label = d ? ((d.getMonth() + 1) + '/' + d.getDate()) : raw;
+  var days = propDays_(raw);
+  var bg = '#F3F4F6', fg = '#6B7280', extra = '';
+
+  // 滞留の警告は「提案中」で止まっているときだけ出す。
+  // 成約・見送り・単価NGは決着済みなので、日数を煽る必要がない。
+  if (st === '提案中' && days !== null) {
+    extra = '（' + days + '日）';
+    if (days >= PROP_STALE_ALERT)     { bg = '#FEE2E2'; fg = '#B91C1C'; }
+    else if (days >= PROP_STALE_WARN) { bg = '#FFEDD5'; fg = '#C2410C'; }
+  }
+
+  return '<span class="propdate" style="background:' + bg + ';color:' + fg + '" '
+    + 'title="提案日 ' + raw + (days !== null ? ' ／ ' + days + '日経過' : '') + '">'
+    + '📅' + label + extra + '</span>';
+}
+
+function propInner_(pid, sid) {
   var st = getProp(pid, sid), s = PROP_STYLE[st] || PROP_STYLE['未提案'];
   return '<button class="propbtn" style="background:' + s.bg + ';color:' + s.fg + '" '
     + 'data-pid="' + pid + '" data-sid="' + sid + '" '
-    + 'onclick="event.stopPropagation();cycleProp(this)">' + st + '</button>';
+    + 'onclick="event.stopPropagation();cycleProp(this)">' + st + '</button>'
+    + propDateChip_(pid, sid);
 }
+
+// ボタンと日付をひとまとめにして返す。
+// 呼び出し側（カード3箇所・詳細モーダル）は一切変更していない。
+function propBtn_(pid, sid) {
+  return '<span class="propwrap" data-pp="' + pid + '_' + sid + '">'
+    + propInner_(pid, sid) + '</span>';
+}
+
+// 同じペアが複数画面に出ていることがあるため、全部まとめて描き直す
+function refreshProp_(pid, sid) {
+  var nodes = document.querySelectorAll('.propwrap[data-pp="' + pid + '_' + sid + '"]');
+  for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = propInner_(pid, sid);
+}
+
 function cycleProp(btn) {
   var pid = Number(btn.dataset.pid), sid = Number(btn.dataset.sid);
   var cur = getProp(pid, sid);
   var next = PROP_CYCLE[(PROP_CYCLE.indexOf(cur) + 1) % PROP_CYCLE.length];
   setProp(pid, sid, next);
-  var s = PROP_STYLE[next];
-  btn.textContent = next; btn.style.background = s.bg; btn.style.color = s.fg;
+  refreshProp_(pid, sid);
 }
 
 // ===========================================================================
@@ -1807,8 +1877,7 @@ function genProposalMail(sId, pId) {
   //   （営業に追加の操作をさせないための仕組み。手動で戻すことも可能）
   if (getProp(p.id, s.id) === '未提案') {
     setProp(p.id, s.id, '提案中', true);
-    var pb = document.querySelector('.propbtn[data-pid="' + p.id + '"][data-sid="' + s.id + '"]');
-    if (pb) { pb.textContent = '提案中'; pb.style.background = PROP_STYLE['提案中'].bg; pb.style.color = PROP_STYLE['提案中'].fg; }
+    refreshProp_(p.id, s.id);   // ★提案日チップも一緒に描き直す
   }
   var prompt = 'あなたはSES業界で経験を積んだ営業担当者です。以下の要員情報・案件情報をもとに、'
     + '案件担当者（発注元のBPまたはエンド企業の窓口）へ送る「要員提案メール」を、件名を含めて作成してください。\n\n'
