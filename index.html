@@ -169,6 +169,7 @@ textarea:focus{outline:none;border-color:#2563EB}
   <button class="tab" onclick="doTab(this)" data-tab="bp">📤 BPへ一斉送信</button>
   <button class="tab" onclick="doTab(this)" data-tab="projs">案件一覧</button>
   <button class="tab" onclick="doTab(this)" data-tab="staffs">要員一覧</button>
+  <button class="tab" onclick="doTab(this)" data-tab="bpv">🏢 BP別</button>
   <button class="tab" onclick="doTab(this)" data-tab="paste">情報追加</button>
   <button class="tab" id="admintab" style="display:none" onclick="doTab(this)" data-tab="admin">⚙ ユーザー管理</button>
 </div>
@@ -303,6 +304,20 @@ textarea:focus{outline:none;border-color:#2563EB}
     </select>
   </div>
   <div class="lgrid" id="sgrid"></div>
+</div>
+
+<div id="tab-bpv" class="sec">
+  <div class="lbar">
+    <input class="si" style="flex:1;min-width:120px" placeholder="BP名で検索..." oninput="bpvState.q=this.value;renderBPView()">
+    <select class="si" style="width:150px" onchange="bpvState.status=this.value;renderBPView()">
+      <option value="open">状態:募集中＋提案中</option><option value="">状態:全て</option><option value="active">募集中のみ</option><option value="proposing">提案中のみ</option><option value="closed">終了のみ</option>
+    </select>
+    <select class="si" style="width:130px" onchange="bpvState.sort=this.value;renderBPView()">
+      <option value="total">件数が多い順</option><option value="proj">案件が多い順</option><option value="staff">要員が多い順</option><option value="name">BP名順</option>
+    </select>
+  </div>
+  <div style="padding:8px 14px;font-size:12px;color:#6B7280;background:#fff;border-bottom:1px solid #E4E6EA" id="bpvinfo"></div>
+  <div id="bpvbody"><div class="empty"><span class="spin"></span>計算中</div></div>
 </div>
 
 <div id="tab-paste" class="sec">
@@ -676,7 +691,7 @@ function loadData() {
   var done = function() {
     updateStats();
     applyMatchStaffFilter(); applyRevProjFilter(); applyPFilter(); applySFilter();
-    renderHot(); renderBP(); applyDeepLink_();
+    renderHot(); renderBP(); renderBPView(); applyDeepLink_();
   };
   if (GAS_URL) {
     fetch(GAS_URL + '?type=all').then(function(r) { return r.json(); }).then(function(d) {
@@ -1732,6 +1747,131 @@ function applySFilter() {
   });
   renderSG(sortList(list, fs.sort, 'unit_min'));
 }
+// 🏢 BP別：BPごとに「そのBPから来た案件（案件元）」「そのBPの要員（所属）」を一覧表示
+//   ・GAS側の改修なし。読込済みの PROJECTS / STAFF の source（C列）をそのまま集計する
+//   ・BP名は完全一致でグループ化するため、表記ゆれが残っていると別BPとして並ぶ。
+//     念のため「表記ゆれ候補」を上部に警告表示する
+var bpvState = { q: '', status: 'open', sort: 'total', open: '' };
+var BPV_NONAME = '（BP名なし）';
+
+function escH_(t) {
+  return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function bpvName_(x) { var n = String(x.source || '').trim(); return n || BPV_NONAME; }
+function bpvStOk_(type, id) {
+  var st = getSt(type, id), f = bpvState.status;
+  if (!f) return true;
+  if (f === 'open') return st !== 'closed';
+  return st === f;
+}
+// 表記ゆれ判定用の正規化（全角半角・法人格・空白・記号を除去）
+function bpvNorm_(n) {
+  var s = String(n);
+  if (s.normalize) s = s.normalize('NFKC');
+  return s.replace(/株式会社|有限会社|合同会社|\(株\)|\(有\)|\(同\)|㈱|㈲/g, '')
+          .replace(/[\s・.,\-ー_]/g, '').toLowerCase();
+}
+function bpvGroups_() {
+  var g = {};
+  var add = function(n) { if (!g[n]) g[n] = { name: n, pAll: [], sAll: [], p: [], s: [] }; return g[n]; };
+  PROJECTS.forEach(function(p) { var b = add(bpvName_(p)); b.pAll.push(p); if (bpvStOk_('project', p.id)) b.p.push(p); });
+  STAFF.forEach(function(s)    { var b = add(bpvName_(s)); b.sAll.push(s); if (bpvStOk_('staff', s.id))   b.s.push(s); });
+  return Object.keys(g).map(function(k) { return g[k]; });
+}
+// 表記ゆれ候補：正規化後が同一、または一方が他方を含む（4文字以上）
+function bpvSuspects_(names) {
+  var list = names.filter(function(n) { return n !== BPV_NONAME; })
+                  .map(function(n) { return { raw: n, key: bpvNorm_(n) }; });
+  var out = [];
+  for (var i = 0; i < list.length; i++) {
+    for (var j = i + 1; j < list.length; j++) {
+      var a = list[i].key, b = list[j].key;
+      if (!a || !b) continue;
+      var short = a.length <= b.length ? a : b, long = a.length <= b.length ? b : a;
+      if (a === b || (short.length >= 4 && long.indexOf(short) >= 0)) out.push([list[i].raw, list[j].raw]);
+    }
+  }
+  return out;
+}
+function renderBPView() {
+  var body = document.getElementById('bpvbody'), info = document.getElementById('bpvinfo');
+  if (!body) return;
+  var groups = bpvGroups_();
+
+  // 詳細表示中
+  if (bpvState.open) {
+    var g = groups.filter(function(x) { return x.name === bpvState.open; })[0];
+    if (g) { renderBPDetail_(g); return; }
+    bpvState.open = '';
+  }
+
+  var sus = bpvSuspects_(groups.map(function(x) { return x.name; }));
+  var q = bpvState.q.toLowerCase();
+  var list = groups.filter(function(x) {
+    if (q && x.name.toLowerCase().indexOf(q) < 0) return false;
+    return x.p.length + x.s.length > 0;
+  });
+  var srt = bpvState.sort;
+  list.sort(function(a, b) {
+    if (srt === 'name')  return a.name.localeCompare(b.name, 'ja');
+    if (srt === 'proj')  return (b.p.length - a.p.length) || (b.s.length - a.s.length);
+    if (srt === 'staff') return (b.s.length - a.s.length) || (b.p.length - a.p.length);
+    return (b.p.length + b.s.length) - (a.p.length + a.s.length);
+  });
+
+  var tp = 0, ts = 0;
+  list.forEach(function(x) { tp += x.p.length; ts += x.s.length; });
+  info.innerHTML = '表示中のBP <strong>' + list.length + '</strong>社（全' + groups.length + '社） ／ 案件 <strong>' + tp + '</strong>件 ／ 要員 <strong>' + ts + '</strong>名';
+
+  var h = '';
+  if (sus.length) {
+    h += '<div style="margin:14px 14px 0;padding:10px 12px;background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;font-size:12px;color:#92400E;line-height:1.7">'
+       + '<strong>⚠ 表記ゆれの可能性があるBP名 ' + sus.length + '組</strong>（同じ会社なら案件・要員シートのC列を統一してください）<br>';
+    sus.slice(0, 20).forEach(function(pr) { h += '・「' + escH_(pr[0]) + '」と「' + escH_(pr[1]) + '」<br>'; });
+    if (sus.length > 20) h += '・ほか' + (sus.length - 20) + '組';
+    h += '</div>';
+  }
+  if (!list.length) { body.innerHTML = h + '<div class="empty">該当するBPがありません</div>'; return; }
+
+  h += '<div class="lgrid">';
+  list.forEach(function(x) {
+    var noName = x.name === BPV_NONAME;
+    h += '<div class="card" style="cursor:pointer;border-left:4px solid ' + (noName ? '#DC2626' : '#2563EB') + '" data-bp="' + escH_(x.name) + '" onclick="openBPView(this)">';
+    h += '<div class="ct"><div class="cn">' + escH_(x.name) + '</div></div>';
+    h += '<div style="display:flex;gap:6px;margin-top:6px">'
+       + '<span class="badge bg-a">📄 案件 ' + x.p.length + '件</span>'
+       + '<span class="badge bg-g">👤 要員 ' + x.s.length + '名</span></div>';
+    var closed = (x.pAll.length - x.p.length) + (x.sAll.length - x.s.length);
+    if (closed > 0 && bpvState.status === 'open') h += '<div style="font-size:11px;color:#9CA3AF;margin-top:6px">ほか終了 ' + closed + '件</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  body.innerHTML = h;
+}
+function openBPView(el) {
+  bpvState.open = el.getAttribute('data-bp');
+  renderBPView();
+  window.scrollTo(0, 0);
+}
+function closeBPView() { bpvState.open = ''; renderBPView(); }
+function renderBPDetail_(g) {
+  var info = document.getElementById('bpvinfo'), body = document.getElementById('bpvbody');
+  info.innerHTML = '<button class="btn btn-d" style="font-size:12px;padding:4px 10px" onclick="closeBPView()">← BP一覧に戻る</button>'
+                 + ' <strong style="font-size:14px;color:#1A1D23;margin-left:6px">' + escH_(g.name) + '</strong>';
+  var ps = sortList(g.p, 'new', 'unit_max'), ss = sortList(g.s, 'new', 'unit_min');
+  // 案件一覧・要員一覧タブにも同じカードがあり、概要欄のID（pdesc-◯／sdesc-◯）が重複する。
+  // 重複すると「概要を見る」が裏の一覧タブ側を開いてしまうため、このタブ用にIDを付け替える
+  var uniq = function(html) { return html.replace(/(['"])(p|s)desc-/g, '$1bpv$2desc-'); };
+  var h = '';
+  h += '<div style="padding:12px 14px 0;font-size:13px;font-weight:700;color:#2563EB">📄 案件（案件元がこのBP） ' + ps.length + '件</div>';
+  h += ps.length ? '<div class="lgrid">' + uniq(ps.map(mkCardGrid).join('')) + '</div>'
+                 : '<div style="padding:10px 14px;font-size:12px;color:#9CA3AF">該当する案件はありません</div>';
+  h += '<div style="padding:12px 14px 0;font-size:13px;font-weight:700;color:#0F9D6E">👤 要員（所属がこのBP） ' + ss.length + '名</div>';
+  h += ss.length ? '<div class="lgrid">' + uniq(ss.map(mkStaffCard).join('')) + '</div>'
+                 : '<div style="padding:10px 14px;font-size:12px;color:#9CA3AF">該当する要員はいません</div>';
+  body.innerHTML = h;
+}
+
 function toggleDesc(elId, btn) {
   var el = document.getElementById(elId);
   if (!el) return;
