@@ -2245,21 +2245,25 @@ function parseAll() {
 //     （他の件の文章を混ぜると、GAS側の勤務希望判定・夜間AI採点が他人の情報で狂うため）登録前に確認を求める
 // ===========================================================================
 var RAW_TAIL_SLACK = 80;   // 書き終わりの後ろに許す文字数（区切り線・空行など）
+var RAW_REST_LIMIT = 400;  // 最後の件の書き終わりの後ろに許す文字数（署名など）。超えたら見落とし疑い
 function splitRawText_(text, projects, staff) {
   var items = projects.concat(staff);
   items.forEach(function(it) { it.raw = ''; it.rawMode = ''; });
   if (!items.length) return;
-  if (items.length === 1) { items[0].raw = text; items[0].rawMode = 'all'; return; }
   var setAll = function(mode) { items.forEach(function(it) { it.raw = ''; it.rawMode = mode; delete it._at; }); };
+  // 1件だけで書き出し・書き終わりが特定できない場合は、従来どおり貼り付け全文を保存する
+  //   （1件ずつ貼るのが通常の使い方。見落とし疑いの検査は下の [最後の件] で行う）
+  var single = items.length === 1;
+  var fallbackAll = function() { items[0].raw = text; items[0].rawMode = 'all'; delete items[0]._at; };
 
   // [書き出し] 完全一致のみ。さらに「原文中に1回だけ出てくる」ことを求める。
   //   区切り線など同じ書き出しが複数あると、案件と要員の取り違えが起きうるため切り分けない
   var heads = items.map(function(it) { return String(it.head || '').trim(); });
   for (var i = 0; i < items.length; i++) {
     var h = heads[i];
-    if (h.length < 4) { setAll('whole'); return; }
+    if (h.length < 4) { if (single) fallbackAll(); else setAll('whole'); return; }
     var at = text.indexOf(h);
-    if (at < 0 || text.indexOf(h, at + 1) >= 0 || heads.indexOf(h) !== i) { setAll('whole'); return; }
+    if (at < 0 || text.indexOf(h, at + 1) >= 0 || heads.indexOf(h) !== i) { if (single) fallbackAll(); else setAll('whole'); return; }
     items[i]._at = at;
   }
   // [並び順] 案件・要員それぞれ、AIの回答順＝原文中の出現順であること
@@ -2277,24 +2281,31 @@ function splitRawText_(text, projects, staff) {
     var end = isLast ? text.length : pos[j + 1]._at;
     var seg = text.slice(st, end).trim();
     pos[j].raw = seg; pos[j].rawMode = 'split';
-    // [書き終わり] 切り出した原文の末尾付近に tail があること（最後の件は署名等が続くので位置は問わない）
+    // [書き終わり] 切り出した原文の末尾付近に tail があること
     var t = String(pos[j].tail || '').trim();
     var ok = false;
     if (t.length >= 4) {
       var tp = seg.lastIndexOf(t);
-      ok = tp >= 0 && (isLast || seg.length - (tp + t.length) <= RAW_TAIL_SLACK);
+      if (tp >= 0 && !isLast) ok = seg.length - (tp + t.length) <= RAW_TAIL_SLACK;
+      if (tp >= 0 && isLast) {
+        // [最後の件] 書き終わりの後ろ（署名など）は保存しない。
+        //   後ろに長い文章が残る場合は、AIが件を見落とした可能性があるので「要確認」にする
+        var rest = seg.length - (tp + t.length);
+        pos[j].raw = seg.slice(0, tp + t.length);
+        ok = rest <= RAW_REST_LIMIT;
+      }
     }
     if (!ok) { bad[j - 1] = bad[j] = bad[j + 1] = true; }
   }
   pos.forEach(function(it, k) { if (bad[k]) { it.raw = ''; it.rawMode = 'suspect'; } });
+  // 1件のみで書き終わりが見つからない場合は、全文保存に戻す（見落とし疑いの「要確認」は維持）
+  if (single && items[0].rawMode === 'suspect' && !String(items[0].tail || '').trim()) fallbackAll();
   items.forEach(function(it) { delete it._at; });
 }
 // スプレッドシートの1セルは50,000文字が上限。超えると保存自体が失敗するため、手前で切る
 function rawForCell_(t) {
   var LIM = 45000;
-  t = t.length > LIM ? t.slice(0, LIM) + '\n…（文字数上限のため以下省略）' : t;
-  // 先頭が = + - @ だとスプレッドシートが数式とみなし、原文が #ERROR! になって消える
-  return /^[=+\-@]/.test(t) ? "'" + t : t;
+  return t.length > LIM ? t.slice(0, LIM) + '\n…（文字数上限のため以下省略）' : t;
 }
 function rawNote_(it) {
   if (it.rawMode === 'suspect')
@@ -2331,7 +2342,12 @@ function confirmAdd() {
 
   var doSave = function(type, item, cb) {
     if (GAS_URL) {
-      fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({type:type,record:item}, function(k, v) { return (k === 'raw' || k === 'rawMode' || k === 'head' || k === 'tail' || k === '_at') ? undefined : v; })})
+      fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({type:type,record:item}, function(k, v) {
+          if (k === 'raw' || k === 'rawMode' || k === 'head' || k === 'tail' || k === '_at') return undefined;
+          // 先頭が = + - @ だとスプレッドシートが数式とみなし、原文が #ERROR! になって消える。送信時だけ ' を付ける
+          if (k === 'desc' && typeof v === 'string' && /^[=+\-@]/.test(v)) return "'" + v;
+          return v;
+        })})
         .then(function(r) { return r.json(); })
         .then(function(d) { cb(true, d && d.id); }).catch(function() { cb(false); });
     } else { cb(false); }
