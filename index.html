@@ -87,6 +87,10 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .pdesc{font-size:12px;color:#6B7280;margin-bottom:12px;line-height:1.5}
 .desctoggle{font-size:11px;color:#2563EB;background:none;border:none;cursor:pointer;padding:0;margin:6px 0 0;text-align:left;font-weight:600}
 .desctoggle:hover{text-decoration:underline}
+.idno{display:inline-block;font-size:10px;font-weight:700;color:#6B7280;background:#F3F4F6;border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:middle}
+.sklbl{font-size:10px;font-weight:700;padding:3px 6px;border-radius:6px;white-space:nowrap}
+.sklbl.must{background:#E8F7F2;color:#0F9D6E}.sklbl.pref{background:#FFFBEB;color:#D97706}
+.tag.pref{background:#FFFBEB;border-color:#FCD34D;color:#B45309}
 .descbox{font-size:12px;color:#4B5563;line-height:1.7;background:#F7F8FA;border-radius:8px;padding:10px;margin-top:6px;white-space:pre-wrap;display:none}
 .descbox.show{display:block}
 textarea{width:100%;min-height:200px;padding:9px;border:1px solid #E4E6EA;border-radius:7px;font-size:13px;resize:vertical;background:#F7F8FA;color:#1A1D23;line-height:1.6;font-family:inherit}
@@ -1466,7 +1470,7 @@ function mkCard(r, i, sId, pId, isMatch) {
   if (obj.desc) {
     var descElId = (isMatch ? 'mcdesc-p-' : 'mcdesc-s-') + obj.id + '-' + i;
     h += '<div onclick="event.stopPropagation()"><button class="desctoggle" onclick="toggleDesc(\'' + descElId + '\',this)">▼ 概要を見る</button>';
-    h += '<div class="descbox" id="' + descElId + '">' + obj.desc + '</div></div>';
+    h += '<div class="descbox" id="' + descElId + '">' + escH_(obj.desc) + '</div></div>';
   }
   h += '<div class="sc-act" onclick="event.stopPropagation()"><button class="btn btn-d" onclick="openDet(' + sId + ',' + pId + ',' + isMatch + ')">詳細を見る</button></div>';
   h += '</div>';
@@ -1716,6 +1720,8 @@ function sortList(list, sortKey, unitField) {
 function matchesQ(x, q) {
   if (!q) return true;
   var f = q.toLowerCase();
+  var mNo = (f.normalize ? f.normalize('NFKC') : f).trim().match(/^(?:no\.?\s*)?(\d+)$/);
+  if (mNo && Number(mNo[1]) === Number(x.id)) return true;
   return x.name.toLowerCase().indexOf(f) >= 0 || (x.skills||[]).some(function(s) { return s.toLowerCase().indexOf(f) >= 0; });
 }
 function applyPFilter() {
@@ -1881,15 +1887,18 @@ function toggleDesc(elId, btn) {
 function mkCardGrid(p) {
   var fr = getFresh(p.date||''); var st = getSt('project',p.id);
   var tags = (p.skills||[]).map(function(s) { return '<span class="tag">'+s+'</span>'; }).join('');
+  if (tags) tags = '<span class="sklbl must">必須</span>' + tags;
+  var prefT = (p.skills_pref||[]).map(function(s) { return '<span class="tag pref">'+s+'</span>'; }).join('');
+  if (prefT) tags += (tags ? '</div><div class="tags">' : '') + '<span class="sklbl pref">尚可</span>' + prefT;
   var h = '<div class="card" style="' + (st==='closed'?'opacity:0.4':'') + '">';
-  h += '<div class="ct"><div class="cn">' + p.name + '</div><span class="badge bg-a">' + p.unit + '</span></div>';
+  h += '<div class="ct"><div class="cn"><span class="idno">案件No.' + p.id + '</span>' + p.name + '</div><span class="badge bg-a">' + p.unit + '</span></div>';
   h += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="project" data-id="' + p.id + '" onclick="cycleStBtn(this)">' + stLbl(st) + '</button></div>';
   h += '<div class="tags">' + tags + '</div>';
   h += '<div class="mr"><div class="meta">勤務: <strong>' + p.remote + (p.location?'／'+p.location:'') + '</strong></div><div class="meta">稼働: <strong>' + p.start + '</strong></div><div class="meta">元: <strong>' + p.source + '</strong></div></div>';
   if (p.desc) {
     h += '<button class="desctoggle" onclick="toggleDesc(\'pdesc-' + p.id + '\',this)">▼ 概要を見る</button>';
-    h += '<div class="descbox" id="pdesc-' + p.id + '">' + p.desc + '</div>';
+    h += '<div class="descbox" id="pdesc-' + p.id + '">' + escH_(p.desc) + '</div>';
   }
   h += '</div>';
   return h;
@@ -1900,7 +1909,7 @@ function mkStaffCard(s) {
   var loc = s.location ? ' (' + s.location + ')' : '';
   var tags = (s.skills||[]).map(function(sk) { return '<span class="tag">'+sk+'</span>'; }).join('');
   var h = '<div class="card" style="' + (st==='closed'?'opacity:0.4':'') + '">';
-  h += '<div class="ct"><div class="cn">' + s.name + loc + '</div><span class="badge bg-g">' + s.unit_min + '万〜</span></div>';
+  h += '<div class="ct"><div class="cn"><span class="idno">要員No.' + s.id + '</span>' + s.name + loc + '</div><span class="badge bg-g">' + s.unit_min + '万〜</span></div>';
   h += '<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><span class="fb ' + fr.cls + '">' + fr.label + '</span>';
   h += '<button class="stbtn ' + stCls2(st) + '" data-type="staff" data-id="' + s.id + '" onclick="cycleStBtn(this)">' + stLbl(st) + '</button></div>';
   h += '<div class="tags">' + tags + '</div>';
@@ -1909,7 +1918,7 @@ function mkStaffCard(s) {
   h += sheetCell_(s);
   if (s.desc) {
     h += '<button class="desctoggle" onclick="toggleDesc(\'sdesc-' + s.id + '\',this)">▼ 概要を見る</button>';
-    h += '<div class="descbox" id="sdesc-' + s.id + '">' + s.desc + '</div>';
+    h += '<div class="descbox" id="sdesc-' + s.id + '">' + escH_(s.desc) + '</div>';
   }
   h += '</div>';
   return h;
@@ -1922,7 +1931,7 @@ function openDet(sId, pId, isMatch) {
   if (!s || !p) return;
   var sc = getScore(s, p);
   var col = scColor_(sc.total);
-  document.getElementById('detttl').textContent = s.name + ' × ' + p.name;
+  document.getElementById('detttl').textContent = '要員No.' + s.id + ' ' + s.name + ' × 案件No.' + p.id + ' ' + p.name;
 
   var skillTags = (p.skills||[]).map(function(sk) {
     if (sc.hit.indexOf(sk) >= 0)  return '<span class="dtag hit">✓ ' + sk + '</span>';
@@ -1972,7 +1981,7 @@ function openDet(sId, pId, isMatch) {
   h += '<div class="dtags">' + sTags + '</div>';
   if (s.desc) {
     h += '<button class="desctoggle" onclick="toggleDesc(\'ddesc-s\',this)">▼ 概要を見る</button>';
-    h += '<div class="descbox" id="ddesc-s">' + s.desc + '</div>';
+    h += '<div class="descbox" id="ddesc-s">' + escH_(s.desc) + '</div>';
   }
   h += '</div>';
   h += '<div class="dsec"><div class="dsh">案件情報</div>';
@@ -1988,7 +1997,7 @@ function openDet(sId, pId, isMatch) {
   if (prefTags) h += '<div style="font-size:11px;color:#6B7280;margin-top:4px">尚可スキル</div><div class="dtags">' + prefTags + '</div>';
   if (p.desc) {
     h += '<button class="desctoggle" onclick="toggleDesc(\'ddesc-p\',this)">▼ 概要を見る</button>';
-    h += '<div class="descbox" id="ddesc-p">' + p.desc + '</div>';
+    h += '<div class="descbox" id="ddesc-p">' + escH_(p.desc) + '</div>';
   }
   h += '</div>';
   h += '<div class="dsec"><div class="dsh">提案メール文を自動生成</div>';
@@ -2128,6 +2137,8 @@ function parseAll() {
     + '【重要】各スキル要素は必ず20文字以内の短い単語にしてください。\n'
     + '【重要】【概要】【工程】【期間】【人数】【面談】【精算】【備考】などの説明ブロックはskillsに入れず、元の文章のまま"desc"にまとめて入れてください（改行は必ず\\nとしてエスケープ）。該当がなければdescは空文字。\n'
     + '【重要】案件名が明記されていない場合は、本文から「〇〇開発」のような簡潔な仮の案件名を推測してつけてください。\n'
+    + '【重要】各案件・各要員には必ず "head" を付けてください。head は、テキスト中でその案件／要員の記載が始まる箇所の先頭20文字前後を、一字一句そのまま書き写したものです（要約・言い換え・記号や空白の変更は禁止。改行は\\nとしてエスケープ）。原文を切り分けて保存するために使います。\n'
+    + '【重要】同様に "tail" も必ず付けてください。tail は、その案件／要員の記載の最後の20文字前後を、一字一句そのまま書き写したものです（次の案件／要員の記載や、メール末尾の署名は含めない）。\n'
     + '【重要】単価の記載が複数箇所にある場合（SNS投稿用の宣伝文と、【単価】等が並ぶ正式な案件詳細）、正式な詳細部分の金額を優先してください。\n\nテキスト:\n' + text;
 
   callClaude(prompt).then(function(raw) {
@@ -2155,6 +2166,7 @@ function parseAll() {
       pp.skills_pref = cleanSkillArr_(pp.skills_pref);
     });
     _pendS = parsed.staff    || [];
+    splitRawText_(text, _pendP, _pendS);
     _pendSFiles = []; _pendSUrls = [];
     var total = _pendP.length + _pendS.length;
     if (total === 0) { rs.textContent = '案件・要員情報が見つかりませんでした。'; return; }
@@ -2181,7 +2193,7 @@ function parseAll() {
           ph += '<div style="font-size:11px;color:#6B7280;margin:6px 0 3px">尚可スキル（' + pp.skills_pref.length + '個・加点のみ）</div>';
           ph += '<div style="display:flex;flex-wrap:wrap;gap:4px">' + pt2 + '</div>';
         }
-        if (pp.desc) ph += '<div style="font-size:11px;color:#0F9D6E;margin-top:6px">✓ 概要文を抽出しました（' + pp.desc.length + '文字）</div>';
+        ph += rawNote_(pp);
         ph += '</div>';
       }
       ph += '</div>';
@@ -2207,7 +2219,7 @@ function parseAll() {
             + '</label>'
             + '<input type="text" id="shu' + j + '" placeholder="🔗 または共有URLを貼り付け" style="width:100%;margin-top:5px;padding:5px 8px;border:1px solid #E4E6EA;border-radius:6px;font-size:12px;background:#fff">'
             + '</div>';
-        if (ps.desc) sh += '<div style="font-size:11px;color:#7C3AED;margin-top:6px">✓ 概要文を抽出しました（' + ps.desc.length + '文字）</div>';
+        sh += rawNote_(ps);
         sh += '</div>';
       }
       sh += '</div>';
@@ -2217,6 +2229,83 @@ function parseAll() {
     document.getElementById('prevs').innerHTML = sh;
     document.getElementById('allprev').style.display = 'block';
   }).catch(function(e) { rs.textContent = 'エラー: ' + e.message; });
+}
+
+// ===========================================================================
+// 貼り付けた原文を、案件・要員1件ずつに切り分ける
+//   ・1件だけなら、貼り付けた全文をそのまま原文とする
+//   ・複数件なら、AIが返した各件の書き出し(head)を原文中から探し、
+//     その位置から次の件の書き出し直前までをその件の原文とする（AIに本文を書き写させないので改変が起きない）
+//   ・誤った位置で切れたまま黙って保存されるのを防ぐため、次の3つで検査する
+//       [書き出し] head が原文中に「完全一致」で見つかること（短縮して探すことはしない）
+//       [並び順]   AIが答えた順番と、原文中の位置の順番が一致すること（案件・要員それぞれ）
+//       [書き終わり] AIが答えた tail（各件の最後の文字列）が、切り出した原文の末尾付近にあること
+//   ・書き出し・並び順で失敗 → 全件「切り分け失敗」。書き終わりで失敗 → その件と前後の件を「要確認」
+//   ・失敗・要確認の件には原文を付けず、従来どおりAIの概要文を保存する。
+//     （他の件の文章を混ぜると、GAS側の勤務希望判定・夜間AI採点が他人の情報で狂うため）登録前に確認を求める
+// ===========================================================================
+var RAW_TAIL_SLACK = 80;   // 書き終わりの後ろに許す文字数（区切り線・空行など）
+function splitRawText_(text, projects, staff) {
+  var items = projects.concat(staff);
+  items.forEach(function(it) { it.raw = ''; it.rawMode = ''; });
+  if (!items.length) return;
+  if (items.length === 1) { items[0].raw = text; items[0].rawMode = 'all'; return; }
+  var setAll = function(mode) { items.forEach(function(it) { it.raw = ''; it.rawMode = mode; delete it._at; }); };
+
+  // [書き出し] 完全一致のみ。さらに「原文中に1回だけ出てくる」ことを求める。
+  //   区切り線など同じ書き出しが複数あると、案件と要員の取り違えが起きうるため切り分けない
+  var heads = items.map(function(it) { return String(it.head || '').trim(); });
+  for (var i = 0; i < items.length; i++) {
+    var h = heads[i];
+    if (h.length < 4) { setAll('whole'); return; }
+    var at = text.indexOf(h);
+    if (at < 0 || text.indexOf(h, at + 1) >= 0 || heads.indexOf(h) !== i) { setAll('whole'); return; }
+    items[i]._at = at;
+  }
+  // [並び順] 案件・要員それぞれ、AIの回答順＝原文中の出現順であること
+  var ordered = function(list) {
+    for (var k = 1; k < list.length; k++) if (list[k]._at <= list[k - 1]._at) return false;
+    return true;
+  };
+  if (!ordered(projects) || !ordered(staff)) { setAll('whole'); return; }
+
+  var pos = items.slice().sort(function(a, b) { return a._at - b._at; });
+  var bad = {};
+  for (var j = 0; j < pos.length; j++) {
+    var isLast = j === pos.length - 1;
+    var st  = pos[j]._at;   // 冒頭の挨拶文は含めない
+    var end = isLast ? text.length : pos[j + 1]._at;
+    var seg = text.slice(st, end).trim();
+    pos[j].raw = seg; pos[j].rawMode = 'split';
+    // [書き終わり] 切り出した原文の末尾付近に tail があること（最後の件は署名等が続くので位置は問わない）
+    var t = String(pos[j].tail || '').trim();
+    var ok = false;
+    if (t.length >= 4) {
+      var tp = seg.lastIndexOf(t);
+      ok = tp >= 0 && (isLast || seg.length - (tp + t.length) <= RAW_TAIL_SLACK);
+    }
+    if (!ok) { bad[j - 1] = bad[j] = bad[j + 1] = true; }
+  }
+  pos.forEach(function(it, k) { if (bad[k]) { it.raw = ''; it.rawMode = 'suspect'; } });
+  items.forEach(function(it) { delete it._at; });
+}
+// スプレッドシートの1セルは50,000文字が上限。超えると保存自体が失敗するため、手前で切る
+function rawForCell_(t) {
+  var LIM = 45000;
+  t = t.length > LIM ? t.slice(0, LIM) + '\n…（文字数上限のため以下省略）' : t;
+  // 先頭が = + - @ だとスプレッドシートが数式とみなし、原文が #ERROR! になって消える
+  return /^[=+\-@]/.test(t) ? "'" + t : t;
+}
+function rawNote_(it) {
+  if (it.rawMode === 'suspect')
+    return '<div style="font-size:11px;color:#DC2626;margin-top:6px;line-height:1.6;border:1.5px solid #DC2626;border-radius:6px;padding:6px 8px;background:#FEF2F2">'
+         + '⚠ <strong>原文の切り分けに自信がありません。</strong>他の件の文章が混ざるのを防ぐため、この件は原文を保存せず、AIの概要文を保存します。<br>原文を残したい場合は「やり直す」を押し、この件だけを貼り付け直してください</div>';
+  if (it.rawMode === 'whole')
+    return '<div style="font-size:11px;color:#DC2626;margin-top:6px;line-height:1.6;border:1.5px solid #DC2626;border-radius:6px;padding:6px 8px;background:#FEF2F2">⚠ <strong>原文を1件ずつに切り分けられませんでした。</strong>この件は原文を保存せず、AIの概要文を保存します。原文を残したい場合は1件ずつ貼り付け直してください</div>';
+  if (!it.raw) return '';
+  var esc = String(it.raw).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return '<details style="margin-top:6px;font-size:11px;color:#0F9D6E"><summary style="cursor:pointer">✓ 原文をそのまま保存します（' + it.raw.length + '文字）・タップで確認</summary>'
+       + '<div style="white-space:pre-wrap;color:#4B5563;background:#F7F8FA;border-radius:6px;padding:8px;margin-top:4px;max-height:220px;overflow:auto">' + esc + '</div></details>';
 }
 
 function confirmAdd() {
@@ -2232,6 +2321,8 @@ function confirmAdd() {
     if (eu && eu.value.trim()) _pendSUrls[j] = eu.value.trim();   // リンクで来たスキルシート
   }
   if (hasErr) { alert('BP名が未入力の項目があります。赤枠の欄を入力してください。'); return; }
+  var rawNg = _pendP.concat(_pendS).filter(function(it) { return it.rawMode === 'whole' || it.rawMode === 'suspect'; }).length;
+  if (rawNg && !confirm('原文を正しく切り分けられなかった件が ' + rawNg + ' 件あります。\nその件は原文が保存されず、AIの概要文で登録されます。\n\nOK：このまま登録する\nキャンセル：登録せずに戻る（1件ずつ貼り直す場合）')) return;
 
   document.getElementById('allprev').style.display = 'none';
   var rs = document.getElementById('allpr'); rs.className = 'pr show'; rs.textContent = '最新データを確認中...';
@@ -2240,7 +2331,7 @@ function confirmAdd() {
 
   var doSave = function(type, item, cb) {
     if (GAS_URL) {
-      fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({type:type,record:item})})
+      fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({type:type,record:item}, function(k, v) { return (k === 'raw' || k === 'rawMode' || k === 'head' || k === 'tail' || k === '_at') ? undefined : v; })})
         .then(function(r) { return r.json(); })
         .then(function(d) { cb(true, d && d.id); }).catch(function() { cb(false); });
     } else { cb(false); }
@@ -2295,6 +2386,7 @@ function confirmAdd() {
   function addNextP() {
     if (pi >= _pendP.length) { addNextS(0); return; }
     var item = _pendP[pi];
+    if (item.raw) item.desc = rawForCell_(item.raw);   // 元内容(F列)には原文をそのまま保存
     maxPId += 1; item.id = maxPId;
     item.date = today;
     item.skills = cleanSkillArr_(item.skills);
@@ -2306,6 +2398,7 @@ function confirmAdd() {
     if (si >= _pendS.length) { done(); return; }
     var idx = si;
     var item = _pendS[idx];
+    if (item.raw) item.desc = rawForCell_(item.raw);   // 元内容(E列)には原文をそのまま保存
     maxSId += 1; item.id = maxSId;
     item.date = today;
     item.skills = cleanSkillArr_(item.skills);
