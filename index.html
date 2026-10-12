@@ -933,16 +933,52 @@ function getProp(pid, sid) {
   var v = SCORES[pid + '_' + sid];
   return (v && v.st) ? v.st : '未提案';
 }
+// ★2026/10/12：提案ステータスの保存を「最後に選んだ値だけ」にする
+//   ボタンは 未提案→提案中→成約→見送り→単価NG と1クリックずつ進むため、
+//   「見送り」にしたいだけでも途中の「成約」が保存されていた（成約0件なのに成約データがある原因）。
+//   また連打すると保存が同時に走り、最後に選んだ値と違う値が残ることがあった。
+//   → 画面の表示はすぐ切り替え、保存はクリックが止まってから1.5秒後に最後の値だけを送る。
+//     同じペアの保存は1件ずつ順番に送る。
+var PROP_SAVE_DELAY = 1500;
+var propSaveTimers_ = {};
+var propSaveChain_  = {};
+var propSaveInflight_ = 0;   // 送信中の件数（画面を閉じるときの確認に使う）
+
 function setProp(pid, sid, status, silent) {
   var k = pid + '_' + sid;
   if (!SCORES[k]) SCORES[k] = { s: 0, r: '' };
   SCORES[k].st = status;
   SCORES[k].sd = (status === '未提案') ? '' : new Date().toLocaleDateString('ja-JP');
   if (!GAS_URL) return;
-  fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'},
-    body: JSON.stringify({ type:'propose', pid: pid, sid: sid, status: status }) })
-    .catch(function() { if (!silent) alert('提案ステータスの保存に失敗しました'); });
+
+  if (propSaveTimers_[k]) clearTimeout(propSaveTimers_[k]);
+  propSaveTimers_[k] = setTimeout(function () {
+    delete propSaveTimers_[k];
+    var finalStatus = SCORES[k].st;   // 待っている間に変わっていれば、最後の値を送る
+    var prev = propSaveChain_[k] || Promise.resolve();
+    propSaveInflight_++;
+    propSaveChain_[k] = prev.then(function () {
+      return fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({ type:'propose', pid: pid, sid: sid, status: finalStatus }) })
+        .then(function (res) { return res.json(); })
+        .then(function (d) {
+          if (d && d.success === false && !d.authError && !silent) {
+            alert('提案ステータスの保存に失敗しました：' + (d.error || ''));
+          }
+        })
+        .catch(function () { if (!silent) alert('提案ステータスの保存に失敗しました'); })
+        .then(function () { propSaveInflight_--; });
+    });
+  }, PROP_SAVE_DELAY);
 }
+
+// 保存待ち・送信中に画面を閉じようとしたら確認を出す（閉じると保存されないことがあるため）
+window.addEventListener('beforeunload', function (e) {
+  if (Object.keys(propSaveTimers_).length || propSaveInflight_ > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 // ===========================================================================
 // ★提案日の表示（現場要望②）
 //   GAS側はマッチスコアG列に提案日を保存済みで、APIも sd として返していた。
