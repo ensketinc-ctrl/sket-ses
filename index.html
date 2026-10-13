@@ -45,6 +45,7 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .stag.hit{background:#E8F7F2;color:#0F9D6E}
 .stag.part{background:#FFFBEB;color:#D97706}
 .stag.miss{background:#F7F8FA;color:#6B7280;border:1px solid #E4E6EA}
+.stag.neu{background:#fff;color:#6B7280;border:1px dashed #D1D5DB}
 .srcb{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:.3px}
 .srcb.ai{background:#EEF2FF;color:#4338CA}
 .srcb.rule{background:#F3F4F6;color:#6B7280}
@@ -183,9 +184,9 @@ textarea:focus{outline:none;border-color:#2563EB}
     <span style="font-size:12px;color:#6B7280;white-space:nowrap;align-self:center">マッチ度</span>
     <select class="si" style="width:100px" onchange="hotState.min=parseInt(this.value);renderHot()">
       <option value="80">80点以上</option>
-      <option value="75" selected>75点以上</option>
+      <option value="75">75点以上</option>
       <option value="70">70点以上</option>
-      <option value="65">65点以上</option>
+      <option value="65" selected>65点以上</option>
       <option value="55">55点以上</option>
     </select>
     <select class="si" style="width:170px" onchange="hotState.sort=this.value;renderHot()">
@@ -1517,7 +1518,7 @@ function mkCard(r, i, sId, pId, isMatch) {
 // 🔥 ホットマッチ：全案件 × 全要員を横断し、スコアの高い組み合わせを抽出
 //   単価オーバーでも提案が通ることがあるため、除外はせず「色分け＋並べ替え」で見せる
 // ===========================================================================
-var hotState = { min: 75, q: '', src: '', unit: '', prop: '未提案', sort: 'priority', limit: 60 };
+var hotState = { min: 65, q: '', src: '', unit: '', prop: '未提案', sort: 'priority', limit: 60 };
 
 function renderHot() {
   var grid = document.getElementById('hotgrid');
@@ -1607,8 +1608,17 @@ function renderHot() {
 
   grid.innerHTML = shown.map(function(x, i) {
     var r = x.r, col = scColor_(r.total);
-    var tags = r.hit.slice(0, 6).map(function(sk) { return '<span class="stag hit">✓ ' + sk + '</span>'; }).join('')
-             + (r.part||[]).slice(0, 3).map(function(sk) { return '<span class="stag part">△ ' + sk + '</span>'; }).join('');
+    // 必須スキル：✓一致 → △同系統 → ✕不足 の順で最大8個。尚可スキル：✓一致を先に最大6個
+    var mustAll = (r.hit||[]).map(function(sk) { return '<span class="stag hit">✓ ' + sk + '</span>'; })
+      .concat((r.part||[]).map(function(sk) { return '<span class="stag part">△ ' + sk + '</span>'; }))
+      .concat((r.miss||[]).map(function(sk) { return '<span class="stag miss">✕ ' + sk + '</span>'; }));
+    var prefList = x.p.skills_pref || [], prefHitL = r.prefHit || [];
+    var prefAll = prefList.filter(function(sk) { return prefHitL.indexOf(sk) >= 0; }).map(function(sk) { return '<span class="stag hit">✓ ' + sk + '</span>'; })
+      .concat(prefList.filter(function(sk) { return prefHitL.indexOf(sk) < 0; }).map(function(sk) { return '<span class="stag neu">' + sk + '</span>'; }));
+    var more_ = function(n) { return n > 0 ? '<span class="stag neu">ほか' + n + '</span>' : ''; };
+    var tags = '';
+    if (mustAll.length) tags += '<div style="width:100%;display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:4px"><span class="sklbl must">必須</span>' + mustAll.slice(0, 8).join('') + more_(mustAll.length - 8) + '</div>';
+    if (prefAll.length) tags += '<div style="width:100%;display:flex;gap:4px;flex-wrap:wrap;align-items:center"><span class="sklbl pref">尚可</span>' + prefAll.slice(0, 6).join('') + more_(prefAll.length - 6) + '</div>';
     var pc = priColor_(x.pri.score);
     var h = '<div class="card" style="cursor:pointer;border-left:4px solid ' + pc + '" onclick="openDet(' + x.s.id + ',' + x.p.id + ',true)">';
     h += '<div class="ct"><div style="font-size:12px;color:#6B7280;font-weight:700">#' + (i+1) + '</div>';
