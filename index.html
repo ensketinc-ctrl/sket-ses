@@ -1404,6 +1404,13 @@ function sheetCell_(s) {
 var UNIT_BAND_BEST_MIN = 0.80;   // これ以上：適正
 var UNIT_BAND_OK_MIN   = 0.70;   // これ以上：やや安いが許容
 var UNIT_BAND_WARN_MIN = 0.60;   // これ以上：乖離（警告）／未満：提案困難
+// 再配信の判定用キー（BP名＋案件名。全角半角・大文字小文字・空白や記号の違いは無視する）
+function projDupKey_(source, name) {
+  var norm = function(v) { return String(v || '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); };
+  var n = norm(name), b = norm(source);
+  if (!n || !b || n === '案件名不明' || b === 'ai解析追加' || b === '不明') return '';
+  return b + '|' + n;
+}
 function unitDiff_(s, p) {
   var umax = (typeof p.unit_max === 'number' && p.unit_max > 0) ? p.unit_max : null;
   var umin = (typeof s.unit_min === 'number' && s.unit_min > 0) ? s.unit_min : null;
@@ -2491,11 +2498,15 @@ function confirmAdd() {
   // 直前に登録したレコードのIDも踏まえて最大IDを再計算する（完全な排他制御ではないが、
   // タブを開いたまま長時間放置したケースでの衝突リスクを大きく減らせる）
   var maxPId = Math.max.apply(null, [0].concat(PROJECTS.map(function(x){return x.id;})));
+  // ★同じBPからの再配信（同じBP・同じ案件名）は追加しない。終了済みの案件は対象外（再配信＝まだ募集中のため新規として追加）
+  var dupKeys = {}, dupP = 0, dupNames = [];
+  function noteDupKey_(x, closed) { var k = projDupKey_(x.source, x.name); if (k && !closed) dupKeys[k] = true; }
+  PROJECTS.forEach(function(x) { noteDupKey_(x, getSt('project', x.id) === 'closed'); });
   var maxSId = Math.max.apply(null, [0].concat(STAFF.map(function(x){return x.id;})));
   function refreshMaxIds(cb) {
     if (!GAS_URL) { cb(); return; }
     fetch(GAS_URL + '?type=all').then(function(r){ return r.json(); }).then(function(d) {
-      (d.projects||[]).forEach(function(x){ if (x.id > maxPId) maxPId = x.id; });
+      (d.projects||[]).forEach(function(x){ if (x.id > maxPId) maxPId = x.id; noteDupKey_(x, x.status === 'closed'); });
       (d.staff||[]).forEach(function(x){ if (x.id > maxSId) maxSId = x.id; });
       cb();
     }).catch(function(){ cb(); });
@@ -2505,6 +2516,9 @@ function confirmAdd() {
   function addNextP() {
     if (pi >= _pendP.length) { addNextS(0); return; }
     var item = _pendP[pi];
+    var dk = projDupKey_(item.source, item.name);
+    if (dk && dupKeys[dk]) { dupP++; dupNames.push(item.name + '（' + item.source + '）'); pi++; addNextP(); return; }
+    if (dk) dupKeys[dk] = true;   // 同じ貼り付けの中での重複も防ぐ
     if (item.raw) item.desc = rawForCell_(item.raw);   // 元内容(F列)には原文をそのまま保存
     maxPId += 1; item.id = maxPId;
     item.date = today;
@@ -2532,6 +2546,7 @@ function confirmAdd() {
     applyPFilter(); applyRevProjFilter(); applySFilter(); applyMatchStaffFilter(); updateStats(); renderHot(); renderBP();
     var msg = GAS_URL ? 'スプレッドシートにも保存しました（案件'+savP+'件・要員'+savS+'名）' : 'スプレッドシートへの保存は設定タブでGAS URLを設定後に有効になります';
     rs.textContent = '追加完了！案件'+addP+'件・要員'+addS+'名をDBに追加しました\n' + msg
+      + (dupP ? '\n同じBPからの再配信のため追加しなかった案件 ' + dupP + '件：' + dupNames.slice(0, 5).join('、') + (dupP > 5 ? ' ほか' : '') : '')
       + (upSheets ? '\nスキルシート ' + upSheets + '件をGoogle Driveに保存しました' : '')
       + '\n※マッチ度はすぐルールベースで表示されます。AIによる精査は深夜2時に自動実行され、翌朝スコアが更新されます。';
     document.getElementById('allta').value = ''; _pendP = []; _pendS = []; _pendSFiles = []; _pendSUrls = [];
