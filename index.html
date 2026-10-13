@@ -2459,7 +2459,7 @@ function confirmAdd() {
           return v;
         })})
         .then(function(r) { return r.json(); })
-        .then(function(d) { cb(true, d && d.id); }).catch(function() { cb(false); });
+        .then(function(d) { cb(true, d && d.id, !!(d && d.duplicate)); }).catch(function() { cb(false); });
     } else { cb(false); }
   };
 
@@ -2498,9 +2498,15 @@ function confirmAdd() {
   // 直前に登録したレコードのIDも踏まえて最大IDを再計算する（完全な排他制御ではないが、
   // タブを開いたまま長時間放置したケースでの衝突リスクを大きく減らせる）
   var maxPId = Math.max.apply(null, [0].concat(PROJECTS.map(function(x){return x.id;})));
-  // ★同じBPからの再配信（同じBP・同じ案件名）は追加しない。終了済みの案件は対象外（再配信＝まだ募集中のため新規として追加）
+  // ★同じBPからの再配信（同じBP・同じ案件名）は追加せず、元の案件の登録日を今日に更新する（GAS v3.6.3 が更新）。
+  //   終了済みの案件は対象外（再配信＝まだ募集中のため新規として追加）
   var dupKeys = {}, dupP = 0, dupNames = [];
   function noteDupKey_(x, closed) { var k = projDupKey_(x.source, x.name); if (k && !closed) dupKeys[k] = true; }
+  function markDup_(item) {
+    dupP++; dupNames.push(item.name + '（' + item.source + '）');
+    var k = projDupKey_(item.source, item.name);
+    PROJECTS.forEach(function(x) { if (x !== item && getSt('project', x.id) !== 'closed' && projDupKey_(x.source, x.name) === k) x.date = today; });
+  }
   PROJECTS.forEach(function(x) { noteDupKey_(x, getSt('project', x.id) === 'closed'); });
   var maxSId = Math.max.apply(null, [0].concat(STAFF.map(function(x){return x.id;})));
   function refreshMaxIds(cb) {
@@ -2517,7 +2523,12 @@ function confirmAdd() {
     if (pi >= _pendP.length) { addNextS(0); return; }
     var item = _pendP[pi];
     var dk = projDupKey_(item.source, item.name);
-    if (dk && dupKeys[dk]) { dupP++; dupNames.push(item.name + '（' + item.source + '）'); pi++; addNextP(); return; }
+    if (dk && dupKeys[dk]) {
+      // 一覧には追加しない。サーバーには送り、元の案件の登録日を更新してもらう
+      markDup_(item); pi++;
+      doSave('project', item, function() { addNextP(); });
+      return;
+    }
     if (dk) dupKeys[dk] = true;   // 同じ貼り付けの中での重複も防ぐ
     if (item.raw) item.desc = rawForCell_(item.raw);   // 元内容(F列)には原文をそのまま保存
     maxPId += 1; item.id = maxPId;
@@ -2525,7 +2536,15 @@ function confirmAdd() {
     item.skills = cleanSkillArr_(item.skills);
     item.skills_pref = cleanSkillArr_(item.skills_pref);
     PROJECTS.push(item); addP++; pi++;
-    doSave('project', item, function(ok) { if(ok) savP++; addNextP(); });
+    doSave('project', item, function(ok, _id, dup) {
+      if (dup) {
+        // サーバー側で再配信と判定された（他の担当者が直前に登録した等）。一覧から取り除く
+        var ix = PROJECTS.indexOf(item); if (ix >= 0) PROJECTS.splice(ix, 1);
+        if (maxPId === item.id) maxPId -= 1;
+        addP--; markDup_(item);
+      } else if (ok) savP++;
+      addNextP();
+    });
   }
   function addNextS(si) {
     if (si >= _pendS.length) { done(); return; }
@@ -2546,7 +2565,7 @@ function confirmAdd() {
     applyPFilter(); applyRevProjFilter(); applySFilter(); applyMatchStaffFilter(); updateStats(); renderHot(); renderBP();
     var msg = GAS_URL ? 'スプレッドシートにも保存しました（案件'+savP+'件・要員'+savS+'名）' : 'スプレッドシートへの保存は設定タブでGAS URLを設定後に有効になります';
     rs.textContent = '追加完了！案件'+addP+'件・要員'+addS+'名をDBに追加しました\n' + msg
-      + (dupP ? '\n同じBPからの再配信のため追加しなかった案件 ' + dupP + '件：' + dupNames.slice(0, 5).join('、') + (dupP > 5 ? ' ほか' : '') : '')
+      + (dupP ? '\n同じBPからの再配信のため追加せず、元の案件の登録日を今日に更新しました ' + dupP + '件：' + dupNames.slice(0, 5).join('、') + (dupP > 5 ? ' ほか' : '') : '')
       + (upSheets ? '\nスキルシート ' + upSheets + '件をGoogle Driveに保存しました' : '')
       + '\n※マッチ度はすぐルールベースで表示されます。AIによる精査は深夜2時に自動実行され、翌朝スコアが更新されます。';
     document.getElementById('allta').value = ''; _pendP = []; _pendS = []; _pendSFiles = []; _pendSUrls = [];
