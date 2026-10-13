@@ -749,7 +749,7 @@ function normSkill_(sk) {
 //  weight … 案件の必須スキルとしての「重さ」。中核技術ほど重く、
 //           補助ツール・工程用語は軽くする（実データでは「アジャイル」「GitLab」
 //           「Figma」等が分母を食い、スキル点の天井を潰していた）
-//  cat    … 同カテゴリ内なら部分点(0.4)を与えるためのグループ
+//  cat    … 重みを決める大分類（部分点△の判定は下の SKILL_FAMILY で行う）
 // ===========================================================================
 var SKILL_CAT = {
   // ---- 生成AI（実データで最も分断されていた領域） ----
@@ -783,6 +783,48 @@ var SKILL_CAT = {
 // カテゴリ別の重み（案件の必須スキルとしての重要度）
 var CAT_WEIGHT = { 'AI':3, 'FRONT':3, 'BACK':3, 'CLOUD':2, 'DB':2, 'PM':2, 'TOOL':1 };
 var DEFAULT_WEIGHT = 2; // 辞書にない語（＝独自語・ロングテール）
+
+// ★部分点(△)を与える「同系統」のグループ。SKILL_CAT（重み用の大分類）より細かく分ける。
+//   大分類のままだと「Java経験→COBOL△」「Docker経験→Windows△」のように、
+//   提案に使えない組み合わせまで△になっていたため。ここにない語は△にならない（✓か✕のみ）。
+var SKILL_FAMILY = {
+  // 生成AI / 機械学習
+  'ai':'GENAI','生成ai':'GENAI','llm':'GENAI','rag':'GENAI','langchain':'GENAI','aiエージェント':'GENAI',
+  'ai駆動開発':'GENAI','claudecode':'GENAI','githubcopilot':'GENAI','dify':'GENAI','openai':'GENAI',
+  'プロンプトエンジニアリング':'GENAI','aiナレッジ':'GENAI','ai導入':'GENAI',
+  '機械学習':'ML','ml':'ML','mlops':'ML',
+  // フロントエンド
+  'react':'FEFW','next':'FEFW','vue':'FEFW','nuxt':'FEFW','angular':'FEFW','svelte':'FEFW','reactrouter':'FEFW',
+  'javascript':'JS','typescript':'JS','node':'JS','nestjs':'JS','express':'JS',
+  'html':'MARKUP','css':'MARKUP','tailwindcss':'MARKUP',
+  'reactnative':'MOBILE','flutter':'MOBILE',
+  // バックエンド（言語とそのフレームワーク単位）
+  'java':'JVM','spring':'JVM','kotlin':'JVM','scala':'JVM',
+  'php':'PHP','laravel':'PHP','cakephp':'PHP','fuelphp':'PHP',
+  'python':'PY','django':'PY','flask':'PY','fastapi':'PY',
+  'ruby':'RUBY','rails':'RUBY',
+  'c#':'DOTNET','net':'DOTNET','vb':'DOTNET',
+  'c':'CLANG','c++':'CLANG','c言語':'CLANG',
+  // クラウド / インフラ
+  'aws':'AWS','lambda':'AWS','s3':'AWS','ec2':'AWS','aurora':'AWS','elasticache':'AWS',
+  'docker':'CONTAINER','kubernetes':'CONTAINER','ecs':'CONTAINER','eks':'CONTAINER','fargate':'CONTAINER',
+  'terraform':'IAC','ansible':'IAC',
+  // DB
+  'sql':'RDB','mysql':'RDB','postgresql':'RDB','oracle':'RDB','sqlserver':'RDB',
+  'mongodb':'NOSQL','redis':'NOSQL','dynamodb':'NOSQL',
+  'snowflake':'DWH','bigquery':'DWH','athena':'DWH',
+  // 上流 / PM
+  'pm':'PMGRP','pmo':'PMGRP','pl':'PMGRP','プロダクトマネジメント':'PMGRP','ベンダーコントロール':'PMGRP','ディレクション':'PMGRP',
+  '要件定義':'UPSTREAM','設計':'UPSTREAM','itコンサル':'UPSTREAM','dx推進':'UPSTREAM',
+  // ツール
+  'git':'VCS','github':'VCS','gitlab':'VCS','bitbucket':'VCS',
+  'jenkins':'CICD','ci/cd':'CICD',
+  'figma':'DESIGN','photoshop':'DESIGN','illustrator':'DESIGN',
+  'アジャイル':'AGILE','scrum':'AGILE',
+  'tableau':'BI','looker':'BI','bi':'BI',
+  'word':'OFFICE','excel':'OFFICE'
+};
+function skillFamily_(k) { return SKILL_FAMILY[k] || null; }
 
 function skillCat_(k) { return SKILL_CAT[k] || null; }
 function skillWeight_(k) {
@@ -819,7 +861,7 @@ function calcScore(s, p) {
   var sset = {}, scats = {};
   (s.skills || []).forEach(function(x) {
     var k = normSkill_(x); sset[k] = true;
-    var c = skillCat_(k); if (c) scats[c] = true;
+    var c = skillFamily_(k); if (c) scats[c] = true;
   });
 
   var hit = [], part = [], miss = [];
@@ -829,7 +871,7 @@ function calcScore(s, p) {
     var w = skillWeight_(k);
     allW += w;
     if (sset[k]) { hit.push(ps); gotW += w; }
-    else if (skillCat_(k) && scats[skillCat_(k)]) { part.push(ps); gotW += w * 0.4; }
+    else if (skillFamily_(k) && scats[skillFamily_(k)]) { part.push(ps); gotW += w * 0.4; }
     else { miss.push(ps); }
   });
   var skillPts = allW > 0 ? Math.round(gotW / allW * 50) : 0;
