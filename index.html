@@ -889,8 +889,12 @@ function calcScore(s, p) {
   if (umax === null) { unitPts = 12; unitNote = '案件単価が不明（スキル見合い等）'; }
   else {
     var diff = umax - umin;
-    if (diff >= 15)      unitPts = 20;              // 粗利十分
-    else if (diff >= 0)  unitPts = 16;              // 収まる
+    // ★単価は「近さ」で評価する（AI採点の基準と同じ）。安すぎる要員は求めるスキル水準と乖離している可能性
+    var uratio = umin / umax;
+    if (diff >= 0 && uratio >= UNIT_BAND_BEST_MIN)      unitPts = 20;   // 80〜100%：最も提案しやすい
+    else if (diff >= 0 && uratio >= UNIT_BAND_OK_MIN)   unitPts = 16;   // 70〜80%：やや安いが許容
+    else if (diff >= 0 && uratio >= UNIT_BAND_WARN_MIN) { unitPts = 10; unitNote = '単価乖離（案件の' + Math.round(uratio * 100) + '%）：求めるスキル水準と差がある可能性'; }
+    else if (diff >= 0)  { unitPts = 5; unitNote = '単価乖離が大きい（案件の' + Math.round(uratio * 100) + '%）：求めるスキル水準と差がある可能性'; }
     else if (diff >= -5) { unitPts = 8;  unitNote = '要交渉（' + (-diff) + '万オーバー）'; }
     else if (diff >= -15){ unitPts = 3;  unitNote = '単価オーバー（' + (-diff) + '万）'; }
     else                 { unitPts = 0;  unitNote = '単価が大きくオーバー（' + (-diff) + '万）'; }
@@ -1396,6 +1400,10 @@ function sheetCell_(s) {
 //     それ以上  … 現実的でない
 //     null      … 案件単価が「スキル見合い」等で未定 → 交渉余地は大きい
 // ===========================================================================
+// ★単価バンド（要員の希望単価 ÷ 案件の上限単価）。GAS側の UNIT_BAND_* と同じ値にすること
+var UNIT_BAND_BEST_MIN = 0.80;   // これ以上：適正
+var UNIT_BAND_OK_MIN   = 0.70;   // これ以上：やや安いが許容
+var UNIT_BAND_WARN_MIN = 0.60;   // これ以上：乖離（警告）／未満：提案困難
 function unitDiff_(s, p) {
   var umax = (typeof p.unit_max === 'number' && p.unit_max > 0) ? p.unit_max : null;
   var umin = (typeof s.unit_min === 'number' && s.unit_min > 0) ? s.unit_min : null;
@@ -1458,10 +1466,17 @@ function calcPriority(s, p, r) {
   else if (uc === 'over')    { pts.push(-35); reasons.push({t:'単価オーバー', c:'over'}); }
   else                       { pts.push(0);   reasons.push({t:'単価未定', c:'unknown'}); }
 
-  // ③ 粗利の大きさ（0〜18点）… 30万で満点
-  if (d !== null && d > 0) {
-    pts.push(Math.min(18, Math.round(d / 1.7)));
-    if (d >= 15) reasons.push({t:'粗利+' + d + '万', c:'fit'});
+  // ③ 単価バンド（-15〜+18点）… ★GAS v3.2（営業タスクメール）と同じ基準にそろえた
+  //   旧版は「粗利の額が大きいほど加点」だったため、102万の案件に60万の要員のような
+  //   組み合わせが最上位に来ていた。案件側は単価相当のスキルを期待するため、
+  //   安すぎる要員は求める水準と乖離している可能性が高く、実際には通りにくい。
+  //   → 額ではなく「要員の希望単価 ÷ 案件の上限単価」の比率で評価し、安すぎる側は減点する。
+  if (d !== null && d >= 0) {
+    var ratio = s.unit_min / p.unit_max, pct = Math.round(ratio * 100);
+    if (ratio >= UNIT_BAND_BEST_MIN)      { pts.push(18);  if (d >= 5) reasons.push({t:'粗利+' + d + '万', c:'fit'}); }
+    else if (ratio >= UNIT_BAND_OK_MIN)   { pts.push(10);  reasons.push({t:'粗利+' + d + '万', c:'fit'}); }
+    else if (ratio >= UNIT_BAND_WARN_MIN) { pts.push(-6);  reasons.push({t:'★単価乖離 ' + pct + '%', c:'talk'}); }
+    else                                  { pts.push(-15); reasons.push({t:'★単価乖離 ' + pct + '%（提案困難）', c:'over'}); }
   }
 
   // ④ 稼働時期（-12〜+10点）
