@@ -2307,7 +2307,7 @@ function parseAll() {
     + '【重要】要員の remote は、リモート勤務を希望している場合のみ true、常駐可・出社可なら false にしてください。\n'
     + '【重要】各スキル要素は必ず20文字以内の短い単語にしてください。\n'
     + '【重要】【概要】【工程】【期間】【人数】【面談】【精算】【備考】などの説明ブロックはskillsに入れず、元の文章のまま"desc"にまとめて入れてください（改行は必ず\\nとしてエスケープ）。該当がなければdescは空文字。\n'
-    + '【重要】must_detail / pref_detail には、テキスト中の「必須条件」「必須スキル」「応募条件」「求める経験」や「歓迎条件」「尚可」などの項目の中身を、要約・省略せず原文のまま全行書き写してください（箇条書きの「・」も残す。経験年数・業務経験・土日出社などの勤務条件・人物面の条件も含める。それぞれ最大15行まで。改行は\\nとしてエスケープ）。該当がなければ空文字。\n'
+    + '【重要】must_detail / pref_detail には、テキスト中の「必須条件」「必須スキル」「応募条件」「求める経験」や「歓迎条件」「尚可」などの項目の中身を、要約・省略せず原文のまま全行書き写してください（箇条書きの「・」も残す。経験年数・業務経験・土日出社などの勤務条件・人物面の条件も含める。それぞれ最大10行まで。テキスト中の案件が6件以上ある場合は各5行まで。改行は\\nとしてエスケープ）。該当がなければ空文字。\n'
     + '【重要】案件名が明記されていない場合は、本文から「〇〇開発」のような簡潔な仮の案件名を推測してつけてください。\n'
     + '【重要】各案件・各要員には必ず "head" を付けてください。head は、テキスト中でその案件／要員の記載が始まる箇所の先頭20文字前後を、一字一句そのまま書き写したものです（要約・言い換え・記号や空白の変更は禁止。改行は\\nとしてエスケープ）。原文を切り分けて保存するために使います。\n'
     + '【重要】同様に "tail" も必ず付けてください。tail は、その案件／要員の記載の最後の20文字前後を、一字一句そのまま書き写したものです（次の案件／要員の記載や、メール末尾の署名は含めない）。\n'
@@ -2562,7 +2562,7 @@ function confirmAdd() {
   var maxPId = Math.max.apply(null, [0].concat(PROJECTS.map(function(x){return x.id;})));
   // ★同じBPからの再配信（同じBP・同じ案件名）は追加せず、元の案件の登録日を今日に更新する（GAS v3.6.3 が更新）。
   //   終了済みの案件は対象外（再配信＝まだ募集中のため新規として追加）
-  var dupKeys = {}, dupP = 0, dupNames = [];
+  var dupKeys = {}, dupP = 0, dupNames = [], failNames = [];
   function noteDupKey_(x, closed) { var k = projDupKey_(x.source, x.name); if (k && !closed) dupKeys[k] = true; }
   function markDup_(item) {
     dupP++; dupNames.push(item.name + '（' + item.source + '）');
@@ -2587,16 +2587,29 @@ function confirmAdd() {
     if (item.raw) item.desc = rawForCell_(item.raw);   // 元内容(F列)には原文をそのまま保存
     // ★必須・歓迎条件の詳細を残す：原文から必須条件が読み取れない場合（原文を保存できず概要文になった等）は、
     //   AIが書き写した必須・歓迎条件を元内容の末尾に付け足す（ツールの「必須条件（原文より）」に表示される）
-    var md = String(item.must_detail || '').trim(), pd = String(item.pref_detail || '').trim();
+    var txt_ = function(v) { return (Array.isArray(v) ? v.join('\n') : String(v || '')).trim(); };
+    var md = txt_(item.must_detail), pd = txt_(item.pref_detail);
     if ((md || pd) && !reqSections_(item.desc).must.length) {
-      item.desc = String(item.desc || '') + (md ? '\n\n【必須条件】\n' + md : '') + (pd ? '\n\n【歓迎条件】\n' + pd : '');
+      item.desc = [String(item.desc || '').trim(), md ? '【必須条件】\n' + md : '', pd ? '【歓迎条件】\n' + pd : ''].filter(Boolean).join('\n\n');
     }
     delete item.must_detail; delete item.pref_detail;
     var dk = projDupKey_(item.source, item.name);
     if (dk && dupKeys[dk]) {
-      // 一覧には追加しない。サーバーには送り、元の案件の登録日を更新してもらう
-      markDup_(item); pi++;
-      doSave('project', item, function() { addNextP(); });
+      // 再配信とみなしてサーバーに送る（サーバーが元の案件の登録日を更新し、追加はしない）。
+      // ただしサーバー側で「再配信ではない」と判定され、新しい行として追加された場合は、一覧にも追加してIDを合わせる
+      pi++;
+      doSave('project', item, function(ok, _id, dup) {
+        if (ok && !dup) {
+          maxPId += 1; item.id = maxPId; item.date = today;
+          item.skills = cleanSkillArr_(item.skills); item.skills_pref = cleanSkillArr_(item.skills_pref);
+          PROJECTS.push(item); addP++; savP++;
+        } else if (dup) {
+          markDup_(item);
+        } else {
+          failNames.push(item.name);   // 通信エラー等で保存できなかった
+        }
+        addNextP();
+      });
       return;
     }
     if (dk) dupKeys[dk] = true;   // 同じ貼り付けの中での重複も防ぐ
@@ -2635,6 +2648,7 @@ function confirmAdd() {
     var msg = GAS_URL ? 'スプレッドシートにも保存しました（案件'+savP+'件・要員'+savS+'名）' : 'スプレッドシートへの保存は設定タブでGAS URLを設定後に有効になります';
     rs.textContent = '追加完了！案件'+addP+'件・要員'+addS+'名をDBに追加しました\n' + msg
       + (dupP ? '\n同じBPからの再配信のため追加せず、元の案件の登録日を今日に更新しました ' + dupP + '件：' + dupNames.slice(0, 5).join('、') + (dupP > 5 ? ' ほか' : '') : '')
+      + (failNames.length ? '\n⚠ 通信エラーで保存できなかった案件 ' + failNames.length + '件：' + failNames.slice(0, 5).join('、') + '（貼り付け直してください）' : '')
       + (upSheets ? '\nスキルシート ' + upSheets + '件をGoogle Driveに保存しました' : '')
       + '\n※マッチ度はすぐルールベースで表示されます。AIによる精査は深夜2時に自動実行され、翌朝スコアが更新されます。';
     document.getElementById('allta').value = ''; _pendP = []; _pendS = []; _pendSFiles = []; _pendSUrls = [];
