@@ -94,6 +94,11 @@ body{background:#F7F8FA;font-family:system-ui,-apple-system,sans-serif;color:#1A
 .tag.pref{background:#FFFBEB;border-color:#FCD34D;color:#B45309}
 .descbox{font-size:12px;color:#4B5563;line-height:1.7;background:#F7F8FA;border-radius:8px;padding:10px;margin-top:6px;white-space:pre-wrap;display:none}
 .descbox.show{display:block}
+.reqbox{font-size:12px;line-height:1.7;border-radius:8px;padding:8px 10px;margin-top:6px;white-space:pre-wrap}
+.reqbox.must{background:#F0FBF7;border:1px solid #BFE9D9;color:#14532D}
+.reqbox.pref{background:#FFFBEB;border:1px solid #FDE68A;color:#78350F}
+.reqbox .reqh{font-weight:700;font-size:11px;margin-bottom:2px;white-space:normal}
+.reqnone{font-size:11px;color:#9CA3AF;margin-top:6px}
 textarea{width:100%;min-height:200px;padding:9px;border:1px solid #E4E6EA;border-radius:7px;font-size:13px;resize:vertical;background:#F7F8FA;color:#1A1D23;line-height:1.6;font-family:inherit}
 textarea:focus{outline:none;border-color:#2563EB}
 .pr{margin-top:8px;padding:10px;background:#F7F8FA;border-radius:7px;font-size:12px;line-height:1.8;white-space:pre-wrap;max-height:160px;overflow-y:auto;display:none}
@@ -1992,7 +1997,62 @@ function toggleDesc(elId, btn) {
   var el = document.getElementById(elId);
   if (!el) return;
   var show = el.classList.toggle('show');
-  btn.textContent = show ? '▲ 概要を閉じる' : '▼ 概要を見る';
+  var l = btn.getAttribute('data-lbl') || '概要';
+  btn.textContent = show ? '▲ ' + l + 'を閉じる' : '▼ ' + l + 'を見る';
+}
+
+// ===========================================================================
+// ★案件の原文から「必須条件」「歓迎条件」の部分を取り出す（AIは使わない・見出しで判定）
+//   例）「⭐️必須条件」「【必須スキル】」「■基本スキル＿：」「必須：〜」→ 必須
+//       「🔹歓迎条件」「【尚可】」「■尚可スキル＿：」→ 歓迎
+//   次の見出し（勤務地・単価・備考など）が来たら、その条件の範囲は終わり。
+//   原文に見出しがない案件（AIの概要文だけの古い案件など）は取り出せない → 原文全文を見てもらう
+// ===========================================================================
+var REQ_PREF_RE = /(歓迎|尚可|なお可|want|nice\s*to\s*have|あれば|優遇|プラス)/i;
+var REQ_MUST_RE = /(必須|must|基本スキル|必要(な)?(スキル|経験|条件|要件)|求める(スキル|経験|人物|人材|要件|方)|応募(条件|資格)|募集(要件|条件)|参画条件|スキル要件|対象(者|となる方))/i;
+// 条件の範囲を終わらせる見出し（記号のない「ラベル：内容」の行で使う。ここにないラベルは条件の中身とみなす）
+var REQ_STOP_RE = /(案件|商流|仕事|業務|作業|概要|内容|環境|単価|金額|報酬|勤務|場所|最寄|時間|期間|稼働|開始|面談|備考|人数|年齢|国籍|精算|支払|リモート|服装|貸与|その他|補足|応募方法|締切|ポジション|工程|契約|募集人数|休日|交通費)/;
+function reqSections_(text) {
+  var out = { must: [], pref: [] };
+  var cur = null;
+  String(text || '').split(/\r?\n/).forEach(function(line) {
+    var t = line.trim();
+    if (!t) return;
+    var head = null, rest = '';
+    // 箇条書きの行（・ - ※ など）は見出しにしない（例「・経験年数：3年以上」は条件の中身）
+    if (/^[・\-－‐―*＊※•◦‣]/.test(t)) { if (cur && out[cur].length < 15) out[cur].push(t); return; }
+    // 見出しの形：記号で始まる短い行 ／「ラベル：内容」／ 見出し語だけの短い行
+    var m = t.match(/^[\u25A0-\u25FF\u2600-\u27BF\u2B50\uFE0F\u{1F300}-\u{1FAFF}【\[＜<〈《\s]*([^】\]＞>〉》：:]{1,24}?)[＿_\s]*(?:[】\]＞>〉》]|[：:])\s*(.*)$/u);
+    var sym = /^[\u25A0-\u25FF\u2600-\u27BF\u2B50\u{1F300}-\u{1FAFF}【\[＜<〈《]/u.test(t);
+    if (m && (sym || m[1].length <= 12)) {
+      // 記号のない「ラベル：内容」は、必須・歓迎・区切りの語でなければ条件の中身（例「言語：Java」）
+      if (!sym && !REQ_PREF_RE.test(m[1]) && !REQ_MUST_RE.test(m[1]) && !REQ_STOP_RE.test(m[1])) {
+        if (cur && out[cur].length < 15) out[cur].push(t);
+        return;
+      }
+      head = m[1]; rest = m[2];
+    }
+    else if (sym && t.length <= 30) { head = t.replace(/^[\u25A0-\u25FF\u2600-\u27BF\u2B50\uFE0F\u{1F300}-\u{1FAFF}【\[＜<〈《\s]+/u, ''); }
+    else if (t.length <= 20 && !/[。、]/.test(t) && /^(必須|歓迎|尚可|求める|応募|必要|基本スキル|must|want)/i.test(t)) { head = t; }
+    if (head !== null) {
+      if (REQ_PREF_RE.test(head) && !/必須/.test(head)) cur = 'pref';
+      else if (REQ_MUST_RE.test(head)) cur = 'must';
+      else { cur = null; return; }
+      if (rest) out[cur].push(rest);
+      return;
+    }
+    if (cur && out[cur].length < 15) out[cur].push(t);
+  });
+  return out;
+}
+// 案件の必須・歓迎条件（原文より）を表示するHTML
+function reqBoxHtml_(p) {
+  var r = reqSections_(p.desc);
+  var h = '';
+  if (r.must.length) h += '<div class="reqbox must"><div class="reqh">⭐ 必須条件（原文より）</div>' + escH_(r.must.join('\n')) + '</div>';
+  if (r.pref.length) h += '<div class="reqbox pref"><div class="reqh">🔹 歓迎条件（原文より）</div>' + escH_(r.pref.join('\n')) + '</div>';
+  if (!h) h = '<div class="reqnone">※原文に「必須条件」の見出しが見つかりませんでした。下の「案件の原文」をご確認ください</div>';
+  return h;
 }
 function mkCardGrid(p) {
   var fr = getFresh(p.date||''); var st = getSt('project',p.id);
@@ -2007,8 +2067,8 @@ function mkCardGrid(p) {
   h += '<div class="tags">' + tags + '</div>';
   h += '<div class="mr"><div class="meta">勤務: <strong>' + p.remote + (p.location?'／'+p.location:'') + '</strong></div><div class="meta">稼働: <strong>' + p.start + '</strong></div><div class="meta">元: <strong>' + p.source + '</strong></div></div>';
   if (p.desc) {
-    h += '<button class="desctoggle" onclick="toggleDesc(\'pdesc-' + p.id + '\',this)">▼ 概要を見る</button>';
-    h += '<div class="descbox" id="pdesc-' + p.id + '">' + escH_(p.desc) + '</div>';
+    h += '<button class="desctoggle" data-lbl="必須・歓迎条件と原文" onclick="toggleDesc(\'pdesc-' + p.id + '\',this)">▼ 必須・歓迎条件と原文を見る</button>';
+    h += '<div class="descbox" id="pdesc-' + p.id + '" style="white-space:normal">' + reqBoxHtml_(p) + '<div style="white-space:pre-wrap;margin-top:8px;border-top:1px solid #E4E6EA;padding-top:8px">' + escH_(p.desc) + '</div></div>';
   }
   h += '</div>';
   return h;
@@ -2106,7 +2166,8 @@ function openDet(sId, pId, isMatch) {
   h += '<div class="dtags">' + skillTags + '</div>';
   if (prefTags) h += '<div style="font-size:11px;color:#6B7280;margin-top:4px">尚可スキル</div><div class="dtags">' + prefTags + '</div>';
   if (p.desc) {
-    h += '<button class="desctoggle" onclick="toggleDesc(\'ddesc-p\',this)">▼ 概要を見る</button>';
+    h += reqBoxHtml_(p);
+    h += '<button class="desctoggle" data-lbl="案件の原文（全文）" onclick="toggleDesc(\'ddesc-p\',this)">▼ 案件の原文（全文）を見る</button>';
     h += '<div class="descbox" id="ddesc-p">' + escH_(p.desc) + '</div>';
   }
   h += '</div>';
@@ -2227,7 +2288,7 @@ function parseAll() {
   cnt.textContent = ''; document.getElementById('allprev').style.display = 'none';
 
   var prompt = 'SES案件・要員情報のテキストからすべての情報を抽出してJSONで返してください（説明なし・JSONのみ）。\n\n'
-    + '{"projects":[{"name":"(案件名)","skills":["(必須スキル)"],"skills_pref":["(尚可スキル)"],"unit":"(単価の金額表記。例:80万円 のように必ずテキスト中の実際の数値を書き写す。ラベルや説明文はここに入れない)","unit_max":数値またはnull,"remote":"リモートまたはハイブリッドまたは常駐","location":"勤務先の都道府県（例:東京都）","start":"(稼働開始時期)","source":"(情報元・BP名)","desc":"概要・仕事内容の説明文"}],'
+    + '{"projects":[{"name":"(案件名)","skills":["(必須スキル)"],"skills_pref":["(尚可スキル)"],"unit":"(単価の金額表記。例:80万円 のように必ずテキスト中の実際の数値を書き写す。ラベルや説明文はここに入れない)","unit_max":数値またはnull,"remote":"リモートまたはハイブリッドまたは常駐","location":"勤務先の都道府県（例:東京都）","start":"(稼働開始時期)","source":"(情報元・BP名)","desc":"概要・仕事内容の説明文","must_detail":"(必須条件の本文を原文のまま)","pref_detail":"(歓迎・尚可条件の本文を原文のまま)"}],'
     + '"staff":[{"name":"名前(年齢)","skills":["スキル"],"unit_min":数値,"remote":true,"start":"稼働開始","location":"都道府県","source":"所属企業","desc":"経歴・実績の説明文"}]}\n\n'
     + '【重要】上記のJSON例内の（）で書かれた説明は記述方法の説明です。そのままの文字列を出力してはいけません。必ずテキストの中から実際の値を抽出してください。特にunitフィールドに"単価"や"金額"のようなラベル名自体をそのまま入れることは禁止です。値が見つからない場合は空文字にしてください。\n\n'
     + '案件判断：案件名・必須スキル・単価・配信番号があれば案件。要員判断：氏名・スキル・希望単価があれば要員。\n\n'
@@ -2246,6 +2307,7 @@ function parseAll() {
     + '【重要】要員の remote は、リモート勤務を希望している場合のみ true、常駐可・出社可なら false にしてください。\n'
     + '【重要】各スキル要素は必ず20文字以内の短い単語にしてください。\n'
     + '【重要】【概要】【工程】【期間】【人数】【面談】【精算】【備考】などの説明ブロックはskillsに入れず、元の文章のまま"desc"にまとめて入れてください（改行は必ず\\nとしてエスケープ）。該当がなければdescは空文字。\n'
+    + '【重要】must_detail / pref_detail には、テキスト中の「必須条件」「必須スキル」「応募条件」「求める経験」や「歓迎条件」「尚可」などの項目の中身を、要約・省略せず原文のまま全行書き写してください（箇条書きの「・」も残す。経験年数・業務経験・土日出社などの勤務条件・人物面の条件も含める。それぞれ最大15行まで。改行は\\nとしてエスケープ）。該当がなければ空文字。\n'
     + '【重要】案件名が明記されていない場合は、本文から「〇〇開発」のような簡潔な仮の案件名を推測してつけてください。\n'
     + '【重要】各案件・各要員には必ず "head" を付けてください。head は、テキスト中でその案件／要員の記載が始まる箇所の先頭20文字前後を、一字一句そのまま書き写したものです（要約・言い換え・記号や空白の変更は禁止。改行は\\nとしてエスケープ）。原文を切り分けて保存するために使います。\n'
     + '【重要】同様に "tail" も必ず付けてください。tail は、その案件／要員の記載の最後の20文字前後を、一字一句そのまま書き写したものです（次の案件／要員の記載や、メール末尾の署名は含めない）。\n'
@@ -2522,6 +2584,14 @@ function confirmAdd() {
   function addNextP() {
     if (pi >= _pendP.length) { addNextS(0); return; }
     var item = _pendP[pi];
+    if (item.raw) item.desc = rawForCell_(item.raw);   // 元内容(F列)には原文をそのまま保存
+    // ★必須・歓迎条件の詳細を残す：原文から必須条件が読み取れない場合（原文を保存できず概要文になった等）は、
+    //   AIが書き写した必須・歓迎条件を元内容の末尾に付け足す（ツールの「必須条件（原文より）」に表示される）
+    var md = String(item.must_detail || '').trim(), pd = String(item.pref_detail || '').trim();
+    if ((md || pd) && !reqSections_(item.desc).must.length) {
+      item.desc = String(item.desc || '') + (md ? '\n\n【必須条件】\n' + md : '') + (pd ? '\n\n【歓迎条件】\n' + pd : '');
+    }
+    delete item.must_detail; delete item.pref_detail;
     var dk = projDupKey_(item.source, item.name);
     if (dk && dupKeys[dk]) {
       // 一覧には追加しない。サーバーには送り、元の案件の登録日を更新してもらう
@@ -2530,7 +2600,6 @@ function confirmAdd() {
       return;
     }
     if (dk) dupKeys[dk] = true;   // 同じ貼り付けの中での重複も防ぐ
-    if (item.raw) item.desc = rawForCell_(item.raw);   // 元内容(F列)には原文をそのまま保存
     maxPId += 1; item.id = maxPId;
     item.date = today;
     item.skills = cleanSkillArr_(item.skills);
