@@ -1997,6 +1997,13 @@ function toggleDesc(elId, btn) {
   var el = document.getElementById(elId);
   if (!el) return;
   var show = el.classList.toggle('show');
+  var rq = el.querySelector('[data-reqpid]');
+  if (show && rq && !rq.getAttribute('data-done')) {
+    var pid = Number(rq.getAttribute('data-reqpid'));
+    var pp = PROJECTS.find(function(x) { return x.id === pid; });
+    if (pp) rq.innerHTML = reqBoxHtml_(pp);
+    rq.setAttribute('data-done', '1');
+  }
   var l = btn.getAttribute('data-lbl') || '概要';
   btn.textContent = show ? '▲ ' + l + 'を閉じる' : '▼ ' + l + 'を見る';
 }
@@ -2015,33 +2022,43 @@ var REQ_STOP_RE = /(案件|商流|仕事|業務|作業|概要|内容|環境|単�
 function reqSections_(text) {
   var out = { must: [], pref: [] };
   var cur = null;
+  var SYM = /^[\u25A0-\u25FF\u2600-\u27BF\u2B50\uFE0F\u{1F300}-\u{1FAFF}【\[＜<〈《\s]+/u;
+  var add = function(t) { if (cur && out[cur].length < 15) out[cur].push(t); };
+  // 見出しのラベルから区分を決める：'must' / 'pref' / 'stop'（条件の範囲を終わらせる） / null（見出しではない）
+  var kind = function(label) {
+    if (REQ_PREF_RE.test(label) && !/必須/.test(label)) return 'pref';
+    if (REQ_MUST_RE.test(label)) return 'must';
+    if (/経験|スキル|資格|知識/.test(label)) return null;   // 「業務経験：3年以上」などは条件の中身
+    if (REQ_STOP_RE.test(label)) return 'stop';
+    return null;
+  };
   String(text || '').split(/\r?\n/).forEach(function(line) {
     var t = line.trim();
     if (!t) return;
-    var head = null, rest = '';
-    // 箇条書きの行（・ - ※ など）は見出しにしない（例「・経験年数：3年以上」は条件の中身）
-    if (/^[・\-－‐―*＊※•◦‣]/.test(t)) { if (cur && out[cur].length < 15) out[cur].push(t); return; }
-    // 見出しの形：記号で始まる短い行 ／「ラベル：内容」／ 見出し語だけの短い行
-    var m = t.match(/^[\u25A0-\u25FF\u2600-\u27BF\u2B50\uFE0F\u{1F300}-\u{1FAFF}【\[＜<〈《\s]*([^】\]＞>〉》：:]{1,24}?)[＿_\s]*(?:[】\]＞>〉》]|[：:])\s*(.*)$/u);
-    var sym = /^[\u25A0-\u25FF\u2600-\u27BF\u2B50\u{1F300}-\u{1FAFF}【\[＜<〈《]/u.test(t);
-    if (m && (sym || m[1].length <= 12)) {
-      // 記号のない「ラベル：内容」は、必須・歓迎・区切りの語でなければ条件の中身（例「言語：Java」）
-      if (!sym && !REQ_PREF_RE.test(m[1]) && !REQ_MUST_RE.test(m[1]) && !REQ_STOP_RE.test(m[1])) {
-        if (cur && out[cur].length < 15) out[cur].push(t);
+    // 箇条書きの行（・ - ※ など）は常に中身（例「・経験年数：3年以上」）
+    if (/^[・\-－‐―*＊※•◦‣]/.test(t)) { add(t); return; }
+    var sym = SYM.test(t) && !/^\s/.test(t);
+    var body = sym ? t.replace(SYM, '') : t;
+    var m = body.match(/^([^】\]＞>〉》：:]{1,24}?)[＿_\s]*(?:[】\]＞>〉》]|[：:])\s*(.*)$/);
+    var label = m ? m[1] : body, rest = m ? m[2] : '';
+    // 見出しらしさ：「ラベル：」「【ラベル】」の形、または記号付き・見出し語だけの短い行
+    var headLike = !!m && (sym || m[1].length <= 12);
+    if (!headLike && body.length <= 20 && !/[。、]/.test(body) && (sym || /^(必須|歓迎|尚可|求める|応募|必要|基本スキル|must|want)/i.test(body))) { headLike = true; label = body; rest = ''; }
+    if (headLike) {
+      var k = kind(label);
+      if (k === 'must' || k === 'pref') {
+        cur = k;
+        if (rest) add(rest);
+        else if (/.[（(](必須|尚可|歓迎)[）)]$|[^\s：:]\s*(必須|尚可)$/.test(body)) add(body);   // 「Java3年以上（必須）」は中身も残す
         return;
       }
-      head = m[1]; rest = m[2];
-    }
-    else if (sym && t.length <= 30) { head = t.replace(/^[\u25A0-\u25FF\u2600-\u27BF\u2B50\uFE0F\u{1F300}-\u{1FAFF}【\[＜<〈《\s]+/u, ''); }
-    else if (t.length <= 20 && !/[。、]/.test(t) && /^(必須|歓迎|尚可|求める|応募|必要|基本スキル|must|want)/i.test(t)) { head = t; }
-    if (head !== null) {
-      if (REQ_PREF_RE.test(head) && !/必須/.test(head)) cur = 'pref';
-      else if (REQ_MUST_RE.test(head)) cur = 'must';
-      else { cur = null; return; }
-      if (rest) out[cur].push(rest);
+      if (k === 'stop') { cur = null; return; }
+      if (!sym && !m) { add(t); return; }
+      // 記号付きでも「●Java開発経験3年以上」のような条件の中身は、範囲の中なら中身として扱う
+      if (cur) { add(sym ? body : t); return; }
       return;
     }
-    if (cur && out[cur].length < 15) out[cur].push(t);
+    add(sym ? body : t);
   });
   return out;
 }
@@ -2068,7 +2085,8 @@ function mkCardGrid(p) {
   h += '<div class="mr"><div class="meta">勤務: <strong>' + p.remote + (p.location?'／'+p.location:'') + '</strong></div><div class="meta">稼働: <strong>' + p.start + '</strong></div><div class="meta">元: <strong>' + p.source + '</strong></div></div>';
   if (p.desc) {
     h += '<button class="desctoggle" data-lbl="必須・歓迎条件と原文" onclick="toggleDesc(\'pdesc-' + p.id + '\',this)">▼ 必須・歓迎条件と原文を見る</button>';
-    h += '<div class="descbox" id="pdesc-' + p.id + '" style="white-space:normal">' + reqBoxHtml_(p) + '<div style="white-space:pre-wrap;margin-top:8px;border-top:1px solid #E4E6EA;padding-top:8px">' + escH_(p.desc) + '</div></div>';
+    // 必須・歓迎条件の取り出しは、開いたときにだけ行う（一覧が多いと表示が重くなるため）
+    h += '<div class="descbox" id="pdesc-' + p.id + '" style="white-space:normal"><div data-reqpid="' + p.id + '"></div><div style="white-space:pre-wrap;margin-top:8px;border-top:1px solid #E4E6EA;padding-top:8px">' + escH_(p.desc) + '</div></div>';
   }
   h += '</div>';
   return h;
@@ -2521,7 +2539,7 @@ function confirmAdd() {
           return v;
         })})
         .then(function(r) { return r.json(); })
-        .then(function(d) { cb(true, d && d.id, !!(d && d.duplicate)); }).catch(function() { cb(false); });
+        .then(function(d) { cb(!!(d && d.success !== false), d && d.id, !!(d && d.duplicate)); }).catch(function() { cb(false); });
     } else { cb(false); }
   };
 
@@ -2562,7 +2580,7 @@ function confirmAdd() {
   var maxPId = Math.max.apply(null, [0].concat(PROJECTS.map(function(x){return x.id;})));
   // ★同じBPからの再配信（同じBP・同じ案件名）は追加せず、元の案件の登録日を今日に更新する（GAS v3.6.3 が更新）。
   //   終了済みの案件は対象外（再配信＝まだ募集中のため新規として追加）
-  var dupKeys = {}, dupP = 0, dupNames = [], failNames = [];
+  var dupKeys = {}, dupP = 0, dupNames = [], failNames = [], needSync = false;
   function noteDupKey_(x, closed) { var k = projDupKey_(x.source, x.name); if (k && !closed) dupKeys[k] = true; }
   function markDup_(item) {
     dupP++; dupNames.push(item.name + '（' + item.source + '）');
@@ -2594,19 +2612,20 @@ function confirmAdd() {
     }
     delete item.must_detail; delete item.pref_detail;
     var dk = projDupKey_(item.source, item.name);
-    if (dk && dupKeys[dk]) {
+    if (dk && dupKeys[dk] && GAS_URL) {
       // 再配信とみなしてサーバーに送る（サーバーが元の案件の登録日を更新し、追加はしない）。
       // ただしサーバー側で「再配信ではない」と判定され、新しい行として追加された場合は、一覧にも追加してIDを合わせる
       pi++;
       doSave('project', item, function(ok, _id, dup) {
-        if (ok && !dup) {
+        if (ok && dup) {
+          markDup_(item);
+        } else if (ok) {
+          // サーバーが新しい行として追加した → 一覧にも追加。番号の食い違いを防ぐため、最後に最新データを読み直す
           maxPId += 1; item.id = maxPId; item.date = today;
           item.skills = cleanSkillArr_(item.skills); item.skills_pref = cleanSkillArr_(item.skills_pref);
-          PROJECTS.push(item); addP++; savP++;
-        } else if (dup) {
-          markDup_(item);
+          PROJECTS.push(item); addP++; savP++; needSync = true;
         } else {
-          failNames.push(item.name);   // 通信エラー等で保存できなかった
+          failNames.push(item.name); needSync = true;   // 通信エラー等。サーバー側で追加された可能性もあるので読み直す
         }
         addNextP();
       });
@@ -2625,6 +2644,7 @@ function confirmAdd() {
         if (maxPId === item.id) maxPId -= 1;
         addP--; markDup_(item);
       } else if (ok) savP++;
+      else if (GAS_URL) { failNames.push(item.name); needSync = true; addP--; }   // 保存失敗。一覧と番号を合わせるため最後に読み直す
       addNextP();
     });
   }
@@ -2652,6 +2672,7 @@ function confirmAdd() {
       + (upSheets ? '\nスキルシート ' + upSheets + '件をGoogle Driveに保存しました' : '')
       + '\n※マッチ度はすぐルールベースで表示されます。AIによる精査は深夜2時に自動実行され、翌朝スコアが更新されます。';
     document.getElementById('allta').value = ''; _pendP = []; _pendS = []; _pendSFiles = []; _pendSUrls = [];
+    if (needSync && GAS_URL) { rs.textContent += '\n（案件の番号を正しく合わせるため、最新データを読み直しています）'; loadData(); }
   }
   rs.textContent = 'DBに追加中...';
   refreshMaxIds(addNextP);
